@@ -162,6 +162,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         @JavascriptInterface
+        fun readAsset(path: String): String {
+            if (path.contains("..") || !path.startsWith("sets/")) return ""
+            return try {
+                Base64.encodeToString(assets.open(path).readBytes(), Base64.NO_WRAP)
+            } catch (e: Exception) { "" }
+        }
+
+        @JavascriptInterface
         fun printPage() {
             runOnUiThread {
                 val pm = getSystemService(Context.PRINT_SERVICE) as PrintManager

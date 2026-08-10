@@ -5,7 +5,7 @@
 
     <application
         android:label="@string/app_name"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_app"
         android:theme="@style/Theme.AppCompat.NoActionBar"
         android:supportsRtl="false">
         <activity

@@ -197,6 +197,11 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
   </div>
   <p class="hint">31套内置字帖（楷·行·行草·草）逐字临写，或上传名家字帖照片。双指缩放，单指拖动。</p>
 
+  <div class="row" id="saveRow" style="display:none">
+    <button class="chip" onclick="saveMyTie()">存入我的碑帖</button>
+    <span style="font-size:11.5px;color:var(--ink-soft)">保存后可随时在 内置字帖 &gt; 我的碑帖 调出</span>
+  </div>
+
   <div class="row" id="setNav">
     <button class="chip" onclick="stepChar(-1)">◀ 上一字</button>
     <span id="setInfo" style="font-size:12px;color:var(--ink-soft);flex:1;text-align:center"></span>
@@ -281,69 +286,106 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
 
 <!-- ───────── 탭3 학습 ───────── -->
 <section id="t3" class="tab">
-  <h2>书法学习</h2>
+  <h2>内置字帖书体要领</h2>
+  <p class="hint">按内置31套字帖的五种书体，说明各自的写法与注意点。</p>
 
   <details open>
-    <summary>坐姿与执笔</summary>
+    <summary>楷书套（千字文·三字经·唐诗·福禄寿喜 等）</summary>
     <div>
-      挺直腰背，身体离桌沿约一拳，纸放在身体正中。<br>
-      · 双钩法：拇指与食指、中指握管，无名指抵住，是最基本的执笔法。<br>
-      · 笔要立直（直笔），悬起手肘用整条手臂书写（悬腕）；写小字可将手腕贴纸（枕腕）。<br>
-      · 笔锋只蘸三分之一的墨，在砚台边上理顺笔毛。
+      <b>怎么写</b><br>
+      · 笔笔独立、笔笔到位：每一笔都有起笔、行笔、收笔三步，不可一带而过。<br>
+      · 中锋行笔：笔锋始终走在笔画正中，线条才圆厚。<br>
+      · 先求平正：横画间距均匀，重心落在竖中线上，把格线打开对照。<br>
+      <b>注意</b><br>
+      · 忌描字：写坏一笔不要回头补描，整字重写。<br>
+      · 忌快：楷书宁慢勿快，行笔要能"留得住"。
     </div>
   </details>
 
   <details>
-    <summary>永字八法——八种基本笔画</summary>
+    <summary>行书套（兰亭集序·陋室铭·爱莲说·相思 等）</summary>
     <div>
-      「永」字包含全部基本笔画。每一笔都分<b>逆入 → 行笔 → 回锋</b>三步完成。
-      <table class="pal">
-        <tr><th>笔画</th><th>名称</th><th>要领</th></tr>
-        <tr><td class="gl">丶</td><td>侧（点）</td><td>侧锋落笔按下，向左下方收笔</td></tr>
-        <tr><td class="gl">一</td><td>勒（横）</td><td>逆入后向右行笔，末端稍按后回锋</td></tr>
-        <tr><td class="gl">丨</td><td>努（竖）</td><td>竖直下行，笔锋走在笔画正中（中锋）</td></tr>
-        <tr><td class="gl">亅</td><td>趯（钩）</td><td>竖到末端顿住，向左上方弹出</td></tr>
-        <tr><td class="gl">㇀</td><td>策（提）</td><td>自左下向右上，短促如扬鞭</td></tr>
-        <tr><td class="gl">丿</td><td>掠（长撇）</td><td>向左下方长出，越到末端越细</td></tr>
-        <tr><td class="gl">㇒</td><td>啄（短撇）</td><td>如鸟啄食，短促迅疾</td></tr>
-        <tr><td class="gl">乀</td><td>磔（捺）</td><td>向右下方边按边行，末端顿笔后铺开</td></tr>
-      </table>
-      练习顺序：横竖 → 点撇捺 → 整个「永」字 → 两三个简单的字。
+      <b>怎么写</b><br>
+      · 笔画之间讲呼应：上一笔的收笔带出下一笔的起笔，笔断意连。<br>
+      · 该连则连、该断则断：连带是笔势自然带出的细线，不是画圈。<br>
+      · 字形骨架仍是楷书：先写好对应的楷书套，再写行书。<br>
+      <b>注意</b><br>
+      · 忌软滑：速度快了线条容易飘，快中要有按笔。<br>
+      · 忌连带过多：满纸缠绕反而俗气，重点笔画仍要独立清楚。
     </div>
   </details>
 
   <details>
-    <summary>结构——如何读帖</summary>
+    <summary>行草·草书套（将进酒·满江红·早发白帝城 等）</summary>
     <div>
-      下笔之前先花30秒「读帖」。打开字帖页的辅助格，看：<br>
-      · <b>重心</b>：字的重心落在竖中线的什么位置<br>
-      · <b>比例</b>：左右偏旁的宽度比、上下部分的高度比<br>
-      · <b>间距</b>：横画之间的距离是否均匀（布白均等）<br>
-      · <b>留白</b>：笔画伸到格子的哪一格、哪里留空<br>
-      写完后养成用批改页重叠对比检查的习惯，眼力会进步很快。
+      <b>怎么写</b><br>
+      · 草法有严格规范：每个字的草书写法是固定的，一点之差就是另一个字。先看清范字的使转路线再下笔。<br>
+      · 使转要圆劲：转弯处靠手腕圆转，线条如弯钢丝，不可瘪。<br>
+      · 讲节奏：快慢交替、轻重交替，一行之内要有大小变化。<br>
+      <b>注意</b><br>
+      · 忌自创草法：不认识的字不要凭感觉简化。<br>
+      · 忌一味求快：草书是"势"快，手不一定快。
     </div>
   </details>
 
   <details>
-    <summary>书体与练习顺序</summary>
+    <summary>古雅套（海纳百川·厚德载物）</summary>
     <div>
-      · <b>楷书</b>：一笔一画的正体，是结构学习的根基，务必从这里开始。<br>
-      · <b>行书</b>：楷书的连笔流动体，楷书之后的阶段。<br>
-      · <b>草书</b>：大幅简省连绵的书体，行书之后再学。<br>
-      · <b>隶书</b>：扁平、蚕头燕尾，可与楷书并行练习。<br>
-      · <b>篆书</b>：最古老的书体，适合线条训练。<br>
-      · <b>韩文板本体 / 宫体</b>：韩文书法的「楷书」与流动体，练韩文时参考。<br>
-      推荐路径：楷书半年 → 隶书·行书 → 草书。
+      <b>怎么写</b><br>
+      · 笔画劲挺方正，带金石味，介于楷书与宋体之间。<br>
+      · 适合写横幅、格言：注意字距均匀，大小一致。<br>
+      <b>注意</b><br>
+      · 忌写得呆板：横画的起收笔仍要有轻重变化。
+    </div>
+  </details>
+
+  <h2>碑帖精讲</h2>
+  <p class="hint">以下三种碑帖请在网上下载高清拓本，用「上传字帖照片 → 存入我的碑帖」加入APP后对照临写。碑刻拓本多为白字，可点「反色」转为黑字。</p>
+
+  <details open>
+    <summary>《张迁碑》——汉隶·方笔之宗</summary>
+    <div>
+      东汉186年刻，汉隶中"方笔"的典型，格调朴拙厚重。<br>
+      <b>怎么写</b><br>
+      · 起笔方切：逆锋入纸后向下切出方头（折刀头），不露尖锋。<br>
+      · 行笔涩进：线条要慢、要"涩"，如逆水行舟，写出毛涩的金石气。<br>
+      · 蚕头燕尾收敛：波磔（燕尾）有而不扬，含蓄厚重。<br>
+      · 结体方扁、大巧若拙：字形看似歪斜错落，实则各有平衡，临时要照原样写，不要自己摆正。<br>
+      <b>注意</b><br>
+      · 最忌写得光滑流利、妍美秀气——那就完全不是张迁碑了。<br>
+      · 忌把方笔写成尖薄的三角形：方头是铺毫切出来的，饱满有厚度。<br>
+      · 用兼毫或羊毫大笔、生一点的纸更容易出效果。
     </div>
   </details>
 
   <details>
-    <summary>临帖三阶段</summary>
+    <summary>智永《真草千字文》——笔法最佳入门</summary>
     <div>
-      · <b>对临</b>：看着字帖照写——用「字帖」页。<br>
-      · <b>背临</b>：遮住字帖凭记忆写——用「字帖」页的「遮住字帖」。<br>
-      · <b>意临</b>：只取笔意，写出自己的字。<br>
-      一个字抄十遍，不如写一遍、对照一遍。
+      隋代智永（王羲之七世孙）传世墨迹，一行楷书一行草书对照排列。因是墨迹（非碑刻），起笔收笔的笔锋出入看得一清二楚，是学笔法的第一范本。<br>
+      <b>怎么写</b><br>
+      · 楷书行：起笔多露锋顺势直入，入纸即按，点画圆润饱满；结构平正之中笔笔有俯仰变化。<br>
+      · 草书行：是最规范的今草，草法标准——学认草、记草法就以此为字典。<br>
+      · 楷草对照着临：同一个字先写楷行，再写草行，体会楷书如何简省成草书。<br>
+      <b>注意</b><br>
+      · 忌写得软媚无骨：智永笔画外圆内刚，"力藏于内"，每一笔按下去都要有弹性。<br>
+      · 露锋起笔不等于虚尖：锋是顺势入纸，入纸后立刻铺毫，不能飘在纸面。<br>
+      · 适合用弹性好的兼毫小笔，字径5~8厘米为宜。
+    </div>
+  </details>
+
+  <details>
+    <summary>魏碑《张黑女墓志》——峻利与秀润兼得</summary>
+    <div>
+      北魏531年刻（本名张玄墓志），魏碑中"秀逸"一路的代表，与龙门造像的雄强方笔不同，何绍基一生推崇。<br>
+      <b>怎么写</b><br>
+      · 方圆兼备：起笔有方有圆，以圆寓方，不可笔笔硬切。<br>
+      · 横画取斜势：普遍左低右高，斜而能稳，全篇斜势要统一。<br>
+      · 撇捺开张舒展：撇捺放得开，还带一点隶书的波磔余味。<br>
+      · 结体扁方：中宫收紧、外势开张，字形略扁。<br>
+      <b>注意</b><br>
+      · 最忌故意抖笔做"刀刻"效果：要透过刀锋看笔锋，还原成毛笔的自然书写。<br>
+      · 忌剑拔弩张：此志贵在既峻利又秀润，火气太大就俗了。<br>
+      · 斜势是整体统一的斜，不是东倒西歪。
     </div>
   </details>
 </section>
@@ -436,10 +478,12 @@ function fitCanvas(){
 }
 window.addEventListener('resize', fitCanvas);
 
+let uploadedImg=null;
 document.getElementById('fileMain').onchange=e=>{
   loadImg(e.target.files[0], im=>{
-    imgMain=im; clearBuiltin(); resetView();
+    imgMain=im; uploadedImg=im; clearBuiltin(); resetView();
     document.getElementById('empty').style.display='none';
+    document.getElementById('saveRow').style.display='flex';
     applyFilter(); drawImg();
   });
 };
@@ -680,7 +724,8 @@ const SETS=[
 let curSet=null, curIdx=0, libBuilt=false;
 
 function openLib(){
-  if(!libBuilt){ buildLib(); loadTie(); libBuilt=true; }
+  if(!libBuilt){ buildLib(); libBuilt=true; }
+  loadTie();
   document.getElementById('lib').style.display='block';
 }
 function closeLib(){ document.getElementById('lib').style.display='none'; }
@@ -700,7 +745,8 @@ function buildLib(){
 }
 
 async function pickSet(i){
-  curSet=SETS[i]; curIdx=0; closeLib();
+  curSet=SETS[i]; curIdx=0; uploadedImg=null; closeLib();
+  document.getElementById('saveRow').style.display='none';
   try{ await document.fonts.load('200px "'+LIBFONTS[curSet.k][0]+'"'); }catch(e){}
   showChar();
 }
@@ -748,37 +794,97 @@ function stepChar(d){
 
 function clearBuiltin(){ curSet=null; updateNav(); }
 
-/* 자가 추가 碑帖 (assets/tie/) */
-function loadTie(){
-  if(!(window.AndroidBridge&&AndroidBridge.listTie)) return;
-  try{
-    const arr=JSON.parse(AndroidBridge.listTie());
-    if(!arr.length) return;
-    document.getElementById('tieHead').style.display='block';
-    const box=document.getElementById('tieList'); box.innerHTML='';
-    arr.forEach(name=>{
-      const b=document.createElement('button');
-      b.className='setbtn'; b.textContent=name.replace(/\.[^.]+$/,'');
-      b.onclick=()=>pickTie(name);
-      box.appendChild(b);
-    });
-  }catch(e){}
+/* 자가 추가 碑帖 (기기 저장 + assets/tie/) */
+function saveMyTie(){
+  if(!uploadedImg) return;
+  let name=window.prompt('给这张碑帖起个名字（如：张迁碑 01）：','');
+  if(!name) return;
+  name=name.replace(/[\\/:*?"<>|.]/g,' ').trim();
+  if(!name) return;
+  const c=document.createElement('canvas');
+  const max=1600, s=Math.min(1,max/Math.max(uploadedImg.width,uploadedImg.height));
+  c.width=Math.round(uploadedImg.width*s); c.height=Math.round(uploadedImg.height*s);
+  c.getContext('2d').drawImage(uploadedImg,0,0,c.width,c.height);
+  const b64=c.toDataURL('image/jpeg',0.88).split(',')[1];
+  if(window.AndroidBridge&&AndroidBridge.saveTie){
+    const ok=AndroidBridge.saveTie(name,b64);
+    alert(ok==='1'?'已存入我的碑帖。':'保存失败。');
+  }else{
+    try{
+      const d=JSON.parse(localStorage.getItem('mytie')||'{}');
+      d[name]='data:image/jpeg;base64,'+b64;
+      localStorage.setItem('mytie',JSON.stringify(d));
+      alert('已存入我的碑帖。');
+    }catch(e){ alert('存储空间不足，保存失败。可减少已存碑帖数量。'); }
+  }
+  document.getElementById('saveRow').style.display='none';
 }
-function pickTie(name){
+
+function loadTie(){
+  const box=document.getElementById('tieList'), head=document.getElementById('tieHead');
+  box.innerHTML='';
+  let items=[];
+  if(window.AndroidBridge&&AndroidBridge.listTie){
+    try{ items=JSON.parse(AndroidBridge.listTie()); }catch(e){}
+  }else{
+    try{
+      const d=JSON.parse(localStorage.getItem('mytie')||'{}');
+      items=Object.keys(d).sort().map(n=>({n:n,u:1}));
+    }catch(e){}
+  }
+  if(!items.length){ head.style.display='none'; return; }
+  head.style.display='block';
+  items.forEach(it=>{
+    const b=document.createElement('button');
+    b.className='setbtn';
+    b.textContent=it.n.replace(/\.[^.]+$/,'');
+    b.onclick=()=>pickTie(it);
+    box.appendChild(b);
+    if(it.u){
+      const d=document.createElement('button');
+      d.className='setbtn'; d.textContent='×';
+      d.style.cssText='color:var(--seal);padding:7px 8px;margin-left:-2px';
+      d.onclick=()=>delTie(it);
+      box.appendChild(d);
+    }
+  });
+}
+function pickTie(it){
   try{
-    const b64=AndroidBridge.readTie(name);
-    if(!b64) return;
-    const ext=name.split('.').pop().toLowerCase();
-    const mime=ext==='png'?'image/png':(ext==='webp'?'image/webp':'image/jpeg');
+    let src='';
+    if(window.AndroidBridge&&AndroidBridge.readTie){
+      const b64=AndroidBridge.readTie(it.n);
+      if(!b64) return;
+      const ext=(it.n.split('.').pop()||'').toLowerCase();
+      const mime=ext==='png'?'image/png':(ext==='webp'?'image/webp':'image/jpeg');
+      src='data:'+mime+';base64,'+b64;
+    }else{
+      const d=JSON.parse(localStorage.getItem('mytie')||'{}');
+      src=d[it.n]; if(!src) return;
+    }
     const im=new Image();
     im.onload=()=>{
-      imgMain=im; clearBuiltin();
+      imgMain=im; uploadedImg=null; clearBuiltin();
       document.getElementById('empty').style.display='none';
+      document.getElementById('saveRow').style.display='none';
       resetView(); applyFilter(); drawImg();
     };
-    im.src='data:'+mime+';base64,'+b64;
+    im.src=src;
     closeLib();
   }catch(e){}
+}
+function delTie(it){
+  if(!confirm('删除「'+it.n.replace(/\.[^.]+$/,'')+'」吗？')) return;
+  if(window.AndroidBridge&&AndroidBridge.deleteTie){
+    AndroidBridge.deleteTie(it.n);
+  }else{
+    try{
+      const d=JSON.parse(localStorage.getItem('mytie')||'{}');
+      delete d[it.n];
+      localStorage.setItem('mytie',JSON.stringify(d));
+    }catch(e){}
+  }
+  loadTie();
 }
 
 /* ───────── AI 첨삭 ───────── */

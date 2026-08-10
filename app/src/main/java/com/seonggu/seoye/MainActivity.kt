@@ -112,13 +112,22 @@ class MainActivity : AppCompatActivity() {
             }.start()
         }
 
+        private fun tieDir(): java.io.File =
+            java.io.File(filesDir, "tie").apply { mkdirs() }
+
         @JavascriptInterface
         fun listTie(): String {
             return try {
-                val names = assets.list("tie")
+                val arr = org.json.JSONArray()
+                assets.list("tie")
                     ?.filter { it.matches(Regex("(?i).+\\.(jpg|jpeg|png|webp)")) }
-                    ?.sorted() ?: emptyList()
-                org.json.JSONArray(names).toString()
+                    ?.sorted()
+                    ?.forEach { arr.put(org.json.JSONObject().put("n", it).put("u", 0)) }
+                tieDir().listFiles()
+                    ?.filter { it.isFile && it.name.matches(Regex("(?i).+\\.(jpg|jpeg|png|webp)")) }
+                    ?.sortedBy { it.name }
+                    ?.forEach { arr.put(org.json.JSONObject().put("n", it.name).put("u", 1)) }
+                arr.toString()
             } catch (e: Exception) { "[]" }
         }
 
@@ -126,9 +135,30 @@ class MainActivity : AppCompatActivity() {
         fun readTie(name: String): String {
             if (name.contains("..") || name.contains("/")) return ""
             return try {
-                val bytes = assets.open("tie/$name").readBytes()
+                val f = java.io.File(tieDir(), name)
+                val bytes = if (f.exists()) f.readBytes()
+                            else assets.open("tie/$name").readBytes()
                 Base64.encodeToString(bytes, Base64.NO_WRAP)
             } catch (e: Exception) { "" }
+        }
+
+        @JavascriptInterface
+        fun saveTie(name: String, b64: String): String {
+            val clean = name.replace(Regex("[\\\\/:*?\"<>|.]"), " ").trim()
+            if (clean.isEmpty()) return "0"
+            return try {
+                val bytes = Base64.decode(b64, Base64.NO_WRAP)
+                java.io.File(tieDir(), "$clean.jpg").writeBytes(bytes)
+                "1"
+            } catch (e: Exception) { "0" }
+        }
+
+        @JavascriptInterface
+        fun deleteTie(name: String): String {
+            if (name.contains("..") || name.contains("/")) return "0"
+            return try {
+                if (java.io.File(tieDir(), name).delete()) "1" else "0"
+            } catch (e: Exception) { "0" }
         }
 
         @JavascriptInterface

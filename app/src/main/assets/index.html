@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>墨房 — 书法练习</title>
+<style>
+:root{
+  --paper:#f5f0e6;      /* 화선지 */
+  --paper-deep:#ece4d4;
+  --ink:#1c1a17;        /* 먹 */
+  --ink-soft:#4a453d;
+  --seal:#b5392f;       /* 인주 */
+  --grid:#8fa0ad;       /* 격자 담청 */
+  --line:#d8cfbd;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif;
+  background:var(--paper); color:var(--ink);
+  background-image:radial-gradient(ellipse at 20% 10%, rgba(255,255,255,.55), transparent 55%),
+                   radial-gradient(ellipse at 85% 90%, rgba(120,100,70,.07), transparent 50%);
+  display:flex; flex-direction:column;
+}
+@font-face{font-family:"Ma Shan Zheng";src:url("fonts/MaShanZheng-Regular.ttf")}
+@font-face{font-family:"Zhi Mang Xing";src:url("fonts/ZhiMangXing-Regular.ttf")}
+@font-face{font-family:"Long Cang";src:url("fonts/LongCang-Regular.ttf")}
+@font-face{font-family:"Liu Jian Mao Cao";src:url("fonts/LiuJianMaoCao-Regular.ttf")}
+@font-face{font-family:"ZCOOL XiaoWei";src:url("fonts/ZCOOLXiaoWei-Regular.ttf")}
+/* 내장 체본 모달 */
+#lib{display:none;position:fixed;inset:0;background:rgba(28,26,23,.45);z-index:20}
+#lib .sheet{position:absolute;left:0;right:0;bottom:0;max-height:80vh;overflow:auto;
+  background:var(--paper);border-radius:14px 14px 0 0;padding:14px 14px 24px;
+  box-shadow:0 -4px 24px rgba(0,0,0,.25)}
+#lib h3{font-family:"KaiTi","STKaiti","Noto Serif SC",serif;font-size:14px;color:var(--seal);
+  margin:12px 0 6px;letter-spacing:2px}
+#lib .setbtn{display:inline-block;margin:3px 4px 3px 0;padding:7px 11px;border:1px solid var(--line);
+  border-radius:6px;background:#fbf8f1;font-size:12.5px;font-family:inherit;cursor:pointer;color:var(--ink)}
+#lib .lic{font-size:10.5px;color:var(--ink-soft);margin-top:14px}
+#setNav{display:none}
+#charStrip{display:none;overflow-x:auto;white-space:nowrap;margin:6px 0;padding-bottom:4px}
+#charStrip button{display:inline-block;width:34px;height:34px;margin-right:5px;border:1px solid var(--line);
+  border-radius:6px;background:#fbf8f1;font-size:17px;cursor:pointer;
+  font-family:"KaiTi","STKaiti","Noto Serif SC",serif;color:var(--ink)}
+#charStrip button.on{background:var(--seal);color:#f7ecdd;border-color:var(--seal)}
+header{
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px 8px;
+}
+.stamp{
+  width:38px;height:38px; background:var(--seal); color:#f7ecdd;
+  font-family:"KaiTi","STKaiti","Noto Serif SC",serif; font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px; line-height:1.05; text-align:center;
+  border-radius:4px; box-shadow:0 1px 0 rgba(0,0,0,.25);
+  letter-spacing:1px;
+}
+header h1{font-family:"KaiTi","STKaiti","Noto Serif SC",serif; font-size:20px; letter-spacing:6px}
+header small{color:var(--ink-soft); font-size:11px; letter-spacing:1px}
+nav{display:flex; border-bottom:1px solid var(--line); padding:0 8px}
+nav button{
+  flex:1; background:none; border:none; padding:10px 2px 9px;
+  font-family:inherit; font-size:14px; color:var(--ink-soft);
+  border-bottom:2px solid transparent; cursor:pointer;
+}
+nav button.on{color:var(--ink); font-weight:700; border-bottom-color:var(--seal)}
+main{flex:1; overflow:auto; padding:12px 14px 90px}
+.tab{display:none}
+.tab.on{display:block}
+h2{font-family:"KaiTi","STKaiti","Noto Serif SC",serif; font-size:16px; margin:14px 0 8px; letter-spacing:2px}
+h2:first-child{margin-top:0}
+p.hint{font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:4px 0 10px}
+
+.btn{
+  display:inline-block; background:var(--ink); color:var(--paper);
+  border:none; border-radius:6px; padding:9px 14px; font-size:13.5px;
+  font-family:inherit; cursor:pointer;
+}
+.btn.ghost{background:transparent; color:var(--ink); border:1px solid var(--ink-soft)}
+.btn.seal{background:var(--seal)}
+.btn:disabled{opacity:.45}
+.row{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:8px 0}
+.chip{
+  border:1px solid var(--ink-soft); background:transparent; color:var(--ink-soft);
+  border-radius:20px; padding:6px 12px; font-size:12.5px; font-family:inherit; cursor:pointer;
+}
+.chip.on{background:var(--ink); color:var(--paper); border-color:var(--ink)}
+input[type=range]{accent-color:var(--seal); flex:1; min-width:90px}
+label.small{font-size:12px; color:var(--ink-soft)}
+
+/* 뷰어 */
+#stage{
+  position:relative; width:100%; aspect-ratio:1/1; max-height:62vh;
+  background:#fbf8f1; border:1px solid var(--line); border-radius:8px;
+  overflow:hidden; touch-action:none; box-shadow:inset 0 0 30px rgba(120,100,60,.08);
+}
+#stage canvas{position:absolute; inset:0; width:100%; height:100%}
+#cover{
+  position:absolute; inset:0; background:var(--paper-deep);
+  display:none; align-items:center; justify-content:center; flex-direction:column; gap:10px;
+  text-align:center; padding:20px; z-index:5;
+}
+#cover.on{display:flex}
+#cover b{font-family:"KaiTi","STKaiti",serif; font-size:18px; letter-spacing:3px}
+#empty{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  color:var(--ink-soft); font-size:13px; text-align:center; padding:20px; line-height:1.7;
+}
+
+/* 첨삭 */
+.cmpwrap{display:flex; gap:8px}
+.cmpbox{flex:1; text-align:center}
+.cmpbox canvas, #ovl{
+  width:100%; aspect-ratio:1/1; background:#fbf8f1;
+  border:1px dashed var(--line); border-radius:8px; display:block;
+}
+.cmpbox span{font-size:11.5px; color:var(--ink-soft)}
+#report{
+  border:1px solid var(--line); border-left:3px solid var(--seal);
+  background:#fbf8f1; border-radius:6px; padding:12px; margin-top:10px;
+  font-size:13px; line-height:1.65; display:none; white-space:pre-wrap;
+}
+#report .score{font-family:"KaiTi","STKaiti",serif; font-size:30px; color:var(--seal); font-weight:700}
+#report h4{margin:8px 0 2px; font-size:13px}
+#report .one{
+  margin-top:10px; padding:8px 10px; background:rgba(181,57,47,.08);
+  border-radius:6px; font-weight:700;
+}
+.spin{display:none; font-size:12.5px; color:var(--ink-soft); margin-top:8px}
+.spin.on{display:block}
+
+/* 학습 */
+details{border-bottom:1px solid var(--line); padding:9px 2px}
+details summary{font-size:14px; font-weight:700; cursor:pointer; list-style:none}
+details summary::before{content:"▸ "; color:var(--seal)}
+details[open] summary::before{content:"▾ "}
+details div{font-size:13px; line-height:1.7; color:var(--ink-soft); padding:6px 2px 2px}
+table.pal{width:100%; border-collapse:collapse; margin:6px 0; font-size:12.5px}
+table.pal td,table.pal th{border:1px solid var(--line); padding:5px 6px; text-align:left}
+table.pal th{background:var(--paper-deep); font-weight:700}
+table.pal td.gl{font-family:"KaiTi","STKaiti",serif; font-size:17px; text-align:center; width:44px}
+
+/* 기록 */
+.statrow{display:flex; gap:8px; margin:8px 0}
+.stat{
+  flex:1; background:#fbf8f1; border:1px solid var(--line); border-radius:8px;
+  padding:10px; text-align:center;
+}
+.stat b{display:block; font-family:"KaiTi","STKaiti",serif; font-size:22px; color:var(--seal)}
+.stat span{font-size:11px; color:var(--ink-soft)}
+#bars{display:flex; align-items:flex-end; gap:4px; height:90px; margin:10px 0; padding:6px;
+  background:#fbf8f1; border:1px solid var(--line); border-radius:8px}
+#bars i{flex:1; background:var(--ink); border-radius:2px 2px 0 0; min-width:6px; position:relative}
+#bars i:last-child{background:var(--seal)}
+ul.reclist{list-style:none; font-size:12.5px}
+ul.reclist li{border-bottom:1px solid var(--line); padding:7px 2px; display:flex; gap:8px}
+ul.reclist li b{color:var(--seal); min-width:34px}
+ul.reclist li span{color:var(--ink-soft); flex:1}
+
+/* 인쇄 */
+#printArea{display:none}
+@media print{
+  body>*{display:none !important}
+  #printArea{display:block !important}
+  #printArea img{width:100%; page-break-inside:avoid}
+}
+.msg{font-size:12px; color:var(--seal); margin-top:6px; min-height:16px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="stamp">墨<br>房</div>
+  <div>
+    <h1>墨房</h1>
+    <small>看帖 · 临写 · AI批改</small>
+  </div>
+</header>
+
+<nav>
+  <button class="on" data-tab="t1">字帖</button>
+  <button data-tab="t2">批改</button>
+  <button data-tab="t3">学习</button>
+  <button data-tab="t4">记录</button>
+</nav>
+
+<main>
+
+<!-- ───────── 탭1 체본 뷰어 ───────── -->
+<section id="t1" class="tab on">
+  <div class="row">
+    <button class="btn seal" onclick="openLib()">内置字帖</button>
+    <button class="btn" onclick="fileMain.click()">上传字帖照片</button>
+    <button class="btn ghost" onclick="togglePrint()">打印字帖</button>
+    <input type="file" id="fileMain" accept="image/*" hidden>
+  </div>
+  <p class="hint">31套内置字帖（楷·行·行草·草）逐字临写，或上传名家字帖照片。双指缩放，单指拖动。</p>
+
+  <div class="row" id="setNav">
+    <button class="chip" onclick="stepChar(-1)">◀ 上一字</button>
+    <span id="setInfo" style="font-size:12px;color:var(--ink-soft);flex:1;text-align:center"></span>
+    <button class="chip" onclick="stepChar(1)">下一字 ▶</button>
+  </div>
+  <div id="charStrip"></div>
+
+  <div id="stage">
+    <canvas id="cvImg"></canvas>
+    <canvas id="cvGrid"></canvas>
+    <div id="empty">上传字帖照片后<br>会在这里放大显示</div>
+    <div id="cover">
+      <b>背 临</b>
+      <span style="font-size:12.5px;color:var(--ink-soft)">字帖已遮住。<br>凭记忆写完后再打开对照。</span>
+      <button class="btn seal" onclick="toggleCover()">重新显示字帖</button>
+    </div>
+  </div>
+
+  <div class="row" style="margin-top:10px">
+    <label class="small">辅助格</label>
+    <button class="chip on" data-grid="none">无</button>
+    <button class="chip" data-grid="cross">十字格</button>
+    <button class="chip" data-grid="mi">米字格</button>
+    <button class="chip" data-grid="nine">九宫格</button>
+    <button class="chip" data-grid="plain">方格</button>
+  </div>
+  <div class="row">
+    <label class="small">格数</label>
+    <button class="chip on" data-cells="1">1</button>
+    <button class="chip" data-cells="2">2</button>
+    <button class="chip" data-cells="3">3</button>
+    <button class="chip" data-cells="4">4</button>
+    <label class="small" style="margin-left:8px">格线深浅</label>
+    <input type="range" id="gridA" min="10" max="100" value="45">
+  </div>
+  <div class="row">
+    <label class="small">处理</label>
+    <button class="chip on" data-f="orig">原图</button>
+    <button class="chip" data-f="gray">黑白</button>
+    <button class="chip" data-f="inv">反色</button>
+    <button class="chip" data-f="hollow">空心字</button>
+    <button class="chip" onclick="toggleCover()" style="margin-left:auto">遮住字帖</button>
+  </div>
+  <div class="row">
+    <label class="small">缩放</label>
+    <input type="range" id="zoom" min="50" max="600" value="100">
+    <button class="chip" onclick="resetView()">复位</button>
+  </div>
+</section>
+
+<!-- ───────── 탭2 첨삭 ───────── -->
+<section id="t2" class="tab">
+  <p class="hint">分别上传原帖字和自己写的字，先重叠对比，再由AI从笔法、结构、章法、墨法四个维度批改。</p>
+  <div class="cmpwrap">
+    <div class="cmpbox">
+      <canvas id="cvA" width="340" height="340" onclick="fileA.click()"></canvas>
+      <span>原帖（点击上传）</span>
+      <input type="file" id="fileA" accept="image/*" hidden>
+    </div>
+    <div class="cmpbox">
+      <canvas id="cvB" width="340" height="340" onclick="fileB.click()"></canvas>
+      <span>我写的字（点击上传）</span>
+      <input type="file" id="fileB" accept="image/*" hidden>
+    </div>
+  </div>
+
+  <h2>重叠对比</h2>
+  <p class="hint">原帖为墨色，自己的字为红色，笔画偏差一眼可见。</p>
+  <canvas id="ovl" width="600" height="600"></canvas>
+  <div class="row">
+    <label class="small">我的字深浅</label>
+    <input type="range" id="ovlA" min="10" max="100" value="60">
+  </div>
+
+  <div class="row">
+    <button class="btn seal" id="btnAI" onclick="runAI()">AI 批改</button>
+    <span class="spin" id="spin">正在研墨……批改意见撰写中。</span>
+  </div>
+  <div id="report"></div>
+  <div class="msg" id="msg2"></div>
+</section>
+
+<!-- ───────── 탭3 학습 ───────── -->
+<section id="t3" class="tab">
+  <h2>书法学习</h2>
+
+  <details open>
+    <summary>坐姿与执笔</summary>
+    <div>
+      挺直腰背，身体离桌沿约一拳，纸放在身体正中。<br>
+      · 双钩法：拇指与食指、中指握管，无名指抵住，是最基本的执笔法。<br>
+      · 笔要立直（直笔），悬起手肘用整条手臂书写（悬腕）；写小字可将手腕贴纸（枕腕）。<br>
+      · 笔锋只蘸三分之一的墨，在砚台边上理顺笔毛。
+    </div>
+  </details>
+
+  <details>
+    <summary>永字八法——八种基本笔画</summary>
+    <div>
+      「永」字包含全部基本笔画。每一笔都分<b>逆入 → 行笔 → 回锋</b>三步完成。
+      <table class="pal">
+        <tr><th>笔画</th><th>名称</th><th>要领</th></tr>
+        <tr><td class="gl">丶</td><td>侧（点）</td><td>侧锋落笔按下，向左下方收笔</td></tr>
+        <tr><td class="gl">一</td><td>勒（横）</td><td>逆入后向右行笔，末端稍按后回锋</td></tr>
+        <tr><td class="gl">丨</td><td>努（竖）</td><td>竖直下行，笔锋走在笔画正中（中锋）</td></tr>
+        <tr><td class="gl">亅</td><td>趯（钩）</td><td>竖到末端顿住，向左上方弹出</td></tr>
+        <tr><td class="gl">㇀</td><td>策（提）</td><td>自左下向右上，短促如扬鞭</td></tr>
+        <tr><td class="gl">丿</td><td>掠（长撇）</td><td>向左下方长出，越到末端越细</td></tr>
+        <tr><td class="gl">㇒</td><td>啄（短撇）</td><td>如鸟啄食，短促迅疾</td></tr>
+        <tr><td class="gl">乀</td><td>磔（捺）</td><td>向右下方边按边行，末端顿笔后铺开</td></tr>
+      </table>
+      练习顺序：横竖 → 点撇捺 → 整个「永」字 → 两三个简单的字。
+    </div>
+  </details>
+
+  <details>
+    <summary>结构——如何读帖</summary>
+    <div>
+      下笔之前先花30秒「读帖」。打开字帖页的辅助格，看：<br>
+      · <b>重心</b>：字的重心落在竖中线的什么位置<br>
+      · <b>比例</b>：左右偏旁的宽度比、上下部分的高度比<br>
+      · <b>间距</b>：横画之间的距离是否均匀（布白均等）<br>
+      · <b>留白</b>：笔画伸到格子的哪一格、哪里留空<br>
+      写完后养成用批改页重叠对比检查的习惯，眼力会进步很快。
+    </div>
+  </details>
+
+  <details>
+    <summary>书体与练习顺序</summary>
+    <div>
+      · <b>楷书</b>：一笔一画的正体，是结构学习的根基，务必从这里开始。<br>
+      · <b>行书</b>：楷书的连笔流动体，楷书之后的阶段。<br>
+      · <b>草书</b>：大幅简省连绵的书体，行书之后再学。<br>
+      · <b>隶书</b>：扁平、蚕头燕尾，可与楷书并行练习。<br>
+      · <b>篆书</b>：最古老的书体，适合线条训练。<br>
+      · <b>韩文板本体 / 宫体</b>：韩文书法的「楷书」与流动体，练韩文时参考。<br>
+      推荐路径：楷书半年 → 隶书·行书 → 草书。
+    </div>
+  </details>
+
+  <details>
+    <summary>临帖三阶段</summary>
+    <div>
+      · <b>对临</b>：看着字帖照写——用「字帖」页。<br>
+      · <b>背临</b>：遮住字帖凭记忆写——用「字帖」页的「遮住字帖」。<br>
+      · <b>意临</b>：只取笔意，写出自己的字。<br>
+      一个字抄十遍，不如写一遍、对照一遍。
+    </div>
+  </details>
+</section>
+
+<!-- ───────── 탭4 기록 ───────── -->
+<section id="t4" class="tab">
+  <h2>练习记录</h2>
+  <div class="statrow">
+    <div class="stat"><b id="stCnt">0</b><span>批改次数</span></div>
+    <div class="stat"><b id="stAvg">–</b><span>平均分</span></div>
+    <div class="stat"><b id="stBest">–</b><span>最高分</span></div>
+    <div class="stat"><b id="stStreak">0</b><span>连续天数</span></div>
+  </div>
+  <h2>分数走势</h2>
+  <div id="bars"></div>
+  <h2>批改日志</h2>
+  <ul class="reclist" id="recList"></ul>
+  <div class="row" style="margin-top:10px">
+    <button class="btn ghost" onclick="clearRecords()">清空全部记录</button>
+  </div>
+  <h2>设置——AI批改密钥</h2>
+  <p class="hint">AI批改需要 Anthropic API 密钥。在 console.anthropic.com 申请后粘贴到此处，密钥只保存在本机。</p>
+  <div class="row">
+    <input type="password" id="apiKey" placeholder="sk-ant-..." style="flex:1;min-width:150px;padding:9px;border:1px solid var(--line);border-radius:6px;background:#fbf8f1;font-family:inherit;font-size:13px">
+    <button class="btn" onclick="saveKey()">保存</button>
+  </div>
+  <div class="msg" id="msg4"></div>
+</section>
+
+</main>
+
+<div id="lib" onclick="closeLib()">
+  <div class="sheet" onclick="event.stopPropagation()">
+    <h2>内置字帖 31套</h2>
+    <p class="hint">全部为公有领域古典名文，由当代书法家开源手写字体呈现，可放心临写。</p>
+    <div id="libList"></div>
+    <h3 id="tieHead" style="display:none">我的碑帖（自加图片）</h3>
+    <div id="tieList"></div>
+    <div class="lic">字体：马善政楷书 Ma Shan Zheng · 志忙行书 Zhi Mang Xing · 龙藏行草 Long Cang · 柳建毛草 Liu Jian Mao Cao · 站酷小薇 ZCOOL XiaoWei（均为 SIL Open Font License 开源授权）</div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+/* ───────── 공통 상태 ───────── */
+let imgMain=null, filter='orig', gridType='none', cells=1;
+let scale=1, ox=0, oy=0;
+let imgA=null, imgB=null;
+let mem={records:[]};            // storage 실패 시 대체
+let storageOK=true;
+
+/* ───────── 탭 전환 ───────── */
+document.querySelectorAll('nav button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.tab).classList.add('on');
+    if(b.dataset.tab==='t4') renderRecords();
+  };
+});
+
+/* ───────── 칩 그룹 ───────── */
+function chipGroup(attr, cb){
+  document.querySelectorAll('[data-'+attr+']').forEach(b=>{
+    b.onclick=()=>{
+      document.querySelectorAll('[data-'+attr+']').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+      cb(b.dataset[attr]);
+    };
+  });
+}
+chipGroup('grid', v=>{gridType=v; drawGrid();});
+chipGroup('cells', v=>{cells=+v; drawGrid();});
+chipGroup('f', v=>{filter=v; drawImg();});
+document.getElementById('gridA').oninput=drawGrid;
+document.getElementById('zoom').oninput=e=>{scale=e.target.value/100; drawImg();};
+
+/* ───────── 체본 이미지 로드/보정 ───────── */
+const stage=document.getElementById('stage');
+const cvImg=document.getElementById('cvImg'), cxI=cvImg.getContext('2d');
+const cvGrid=document.getElementById('cvGrid'), cxG=cvGrid.getContext('2d');
+let procCanvas=document.createElement('canvas'); // 보정 결과 캐시
+
+function fitCanvas(){
+  const r=stage.getBoundingClientRect();
+  [cvImg,cvGrid].forEach(c=>{c.width=r.width*2; c.height=r.height*2;});
+  drawImg(); drawGrid();
+}
+window.addEventListener('resize', fitCanvas);
+
+document.getElementById('fileMain').onchange=e=>{
+  loadImg(e.target.files[0], im=>{
+    imgMain=im; clearBuiltin(); resetView();
+    document.getElementById('empty').style.display='none';
+    applyFilter(); drawImg();
+  });
+};
+
+function loadImg(file, cb){
+  if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{const im=new Image(); im.onload=()=>cb(im); im.src=rd.result;};
+  rd.readAsDataURL(file);
+}
+
+function applyFilter(){
+  if(!imgMain) return;
+  const max=1600;
+  const s=Math.min(1, max/Math.max(imgMain.width,imgMain.height));
+  const w=Math.round(imgMain.width*s), h=Math.round(imgMain.height*s);
+  procCanvas.width=w; procCanvas.height=h;
+  const c=procCanvas.getContext('2d');
+  c.drawImage(imgMain,0,0,w,h);
+  if(filter==='orig') return;
+  const d=c.getImageData(0,0,w,h), px=d.data;
+  if(filter==='hollow'){
+    // 이진화 후 윤곽선만
+    const g=new Uint8Array(w*h);
+    for(let i=0;i<w*h;i++){
+      const v=(px[i*4]*0.3+px[i*4+1]*0.59+px[i*4+2]*0.11);
+      g[i]=v<140?1:0;
+    }
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+      const i=y*w+x;
+      let edge=0;
+      if(g[i]){
+        if(x===0||x===w-1||y===0||y===h-1) edge=1;
+        else if(!g[i-1]||!g[i+1]||!g[i-w]||!g[i+w]) edge=1;
+      }
+      const v=edge?20:250;
+      px[i*4]=px[i*4+1]=px[i*4+2]=v; px[i*4+3]=255;
+    }
+  }else{
+    for(let i=0;i<px.length;i+=4){
+      let v=px[i]*0.3+px[i+1]*0.59+px[i+2]*0.11;
+      if(filter==='inv') v=255-v;
+      px[i]=px[i+1]=px[i+2]=v;
+    }
+  }
+  c.putImageData(d,0,0);
+}
+// filter 변경 시 재처리
+document.querySelectorAll('[data-f]').forEach(b=>{
+  const old=b.onclick;
+  b.onclick=()=>{ old&&old.call(b); applyFilter(); drawImg(); };
+});
+
+function drawImg(){
+  cxI.clearRect(0,0,cvImg.width,cvImg.height);
+  if(!imgMain) return;
+  const W=cvImg.width, H=cvImg.height;
+  const iw=procCanvas.width, ih=procCanvas.height;
+  const base=Math.min(W/iw, H/ih)*scale;
+  const dw=iw*base, dh=ih*base;
+  cxI.drawImage(procCanvas, W/2-dw/2+ox, H/2-dh/2+oy, dw, dh);
+}
+
+function drawGrid(){
+  cxG.clearRect(0,0,cvGrid.width,cvGrid.height);
+  if(gridType==='none') return;
+  const W=cvGrid.width, H=cvGrid.height;
+  const a=document.getElementById('gridA').value/100;
+  cxG.strokeStyle='rgba(70,110,140,'+a+')';
+  cxG.lineWidth=2;
+  const size=Math.min(W,H)*0.92;
+  const x0=(W-size)/2, y0=(H-size)/2, cell=size/cells;
+  for(let r=0;r<cells;r++)for(let q=0;q<cells;q++){
+    const x=x0+q*cell, y=y0+r*cell;
+    cxG.strokeRect(x,y,cell,cell);
+    cxG.save(); cxG.beginPath();
+    if(gridType==='cross'||gridType==='mi'){
+      cxG.moveTo(x+cell/2,y); cxG.lineTo(x+cell/2,y+cell);
+      cxG.moveTo(x,y+cell/2); cxG.lineTo(x+cell,y+cell/2);
+    }
+    if(gridType==='mi'){
+      cxG.moveTo(x,y); cxG.lineTo(x+cell,y+cell);
+      cxG.moveTo(x+cell,y); cxG.lineTo(x,y+cell);
+    }
+    if(gridType==='nine'){
+      for(let k=1;k<3;k++){
+        cxG.moveTo(x+cell*k/3,y); cxG.lineTo(x+cell*k/3,y+cell);
+        cxG.moveTo(x,y+cell*k/3); cxG.lineTo(x+cell,y+cell*k/3);
+      }
+    }
+    cxG.setLineDash(gridType==='plain'?[]:[8,6]);
+    cxG.stroke(); cxG.restore();
+  }
+}
+
+function resetView(){scale=1;ox=0;oy=0;document.getElementById('zoom').value=100;drawImg();}
+function toggleCover(){document.getElementById('cover').classList.toggle('on');}
+
+/* ───────── 팬/핀치 ───────── */
+let pts=new Map(), lastDist=0;
+stage.addEventListener('pointerdown',e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); stage.setPointerCapture(e.pointerId);});
+stage.addEventListener('pointermove',e=>{
+  if(!pts.has(e.pointerId)) return;
+  const p=pts.get(e.pointerId);
+  if(pts.size===1){
+    ox+=(e.clientX-p.x)*2; oy+=(e.clientY-p.y)*2; drawImg();
+  }else if(pts.size===2){
+    const arr=[...pts.values()];
+    const other=arr.find(v=>v!==p);
+    const d=Math.hypot(e.clientX-other.x, e.clientY-other.y);
+    if(lastDist>0){ scale=Math.min(6,Math.max(.5,scale*d/lastDist));
+      document.getElementById('zoom').value=scale*100; drawImg(); }
+    lastDist=d;
+  }
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+});
+['pointerup','pointercancel','pointerout'].forEach(ev=>stage.addEventListener(ev,e=>{pts.delete(e.pointerId); if(pts.size<2)lastDist=0;}));
+stage.addEventListener('wheel',e=>{e.preventDefault(); scale=Math.min(6,Math.max(.5,scale*(e.deltaY<0?1.1:0.9))); document.getElementById('zoom').value=scale*100; drawImg();},{passive:false});
+
+/* ───────── 인쇄용 체본 ───────── */
+function togglePrint(){
+  if(!imgMain){alert('请先上传字帖照片。'); return;}
+  const pa=document.getElementById('printArea');
+  // 체본 + 격자 합성 이미지 1장, 빈 격자 1장
+  const mk=(withImg)=>{
+    const c=document.createElement('canvas'); c.width=1400; c.height=1400;
+    const x=c.getContext('2d');
+    x.fillStyle='#fff'; x.fillRect(0,0,1400,1400);
+    if(withImg){
+      const iw=procCanvas.width, ih=procCanvas.height;
+      const s=Math.min(1300/iw,1300/ih);
+      x.globalAlpha=withImg==='faint'?0.25:1;
+      x.drawImage(procCanvas,700-iw*s/2,700-ih*s/2,iw*s,ih*s);
+      x.globalAlpha=1;
+    }
+    x.strokeStyle='rgba(70,110,140,.7)'; x.lineWidth=3; x.setLineDash([10,8]);
+    const size=1320, x0=40, y0=40, cell=size/cells;
+    for(let r=0;r<cells;r++)for(let q=0;q<cells;q++){
+      const gx=x0+q*cell, gy=y0+r*cell;
+      x.setLineDash([]); x.strokeRect(gx,gy,cell,cell); x.setLineDash([10,8]);
+      x.beginPath();
+      x.moveTo(gx+cell/2,gy); x.lineTo(gx+cell/2,gy+cell);
+      x.moveTo(gx,gy+cell/2); x.lineTo(gx+cell,gy+cell/2);
+      x.moveTo(gx,gy); x.lineTo(gx+cell,gy+cell);
+      x.moveTo(gx+cell,gy); x.lineTo(gx,gy+cell);
+      x.stroke();
+    }
+    const im=new Image(); im.src=c.toDataURL('image/jpeg',0.9); return im;
+  };
+  pa.innerHTML='';
+  pa.appendChild(mk(true));    // 체본 그대로 + 격자 (보고 쓰기)
+  pa.appendChild(mk('faint')); // 연하게 (덧쓰기, 모임)
+  pa.appendChild(mk(false));   // 빈 격자 (스스로 쓰기)
+  setTimeout(()=>{
+    if(window.AndroidBridge&&AndroidBridge.printPage){AndroidBridge.printPage();}
+    else{window.print();}
+  },300);
+}
+
+/* ───────── 첨삭 탭 ───────── */
+const cvA=document.getElementById('cvA'), cvB=document.getElementById('cvB');
+document.getElementById('fileA').onchange=e=>loadImg(e.target.files[0],im=>{imgA=im;thumb(cvA,im);overlay();});
+document.getElementById('fileB').onchange=e=>loadImg(e.target.files[0],im=>{imgB=im;thumb(cvB,im);overlay();});
+document.getElementById('ovlA').oninput=overlay;
+
+function thumb(cv,im){
+  const x=cv.getContext('2d');
+  x.fillStyle='#fbf8f1'; x.fillRect(0,0,cv.width,cv.height);
+  const s=Math.min(cv.width/im.width,cv.height/im.height);
+  x.drawImage(im,cv.width/2-im.width*s/2,cv.height/2-im.height*s/2,im.width*s,im.height*s);
+}
+
+function tint(im, rgb, alphaMul){
+  // 어두운 부분만 색으로, 밝은 부분 투명
+  const c=document.createElement('canvas');
+  const max=600, s=Math.min(1,max/Math.max(im.width,im.height));
+  c.width=im.width*s; c.height=im.height*s;
+  const x=c.getContext('2d'); x.drawImage(im,0,0,c.width,c.height);
+  const d=x.getImageData(0,0,c.width,c.height), px=d.data;
+  for(let i=0;i<px.length;i+=4){
+    const v=px[i]*0.3+px[i+1]*0.59+px[i+2]*0.11;
+    const a=Math.max(0,(200-v)/200);
+    px[i]=rgb[0]; px[i+1]=rgb[1]; px[i+2]=rgb[2];
+    px[i+3]=Math.round(255*a*alphaMul);
+  }
+  x.putImageData(d,0,0); return c;
+}
+
+function overlay(){
+  const cv=document.getElementById('ovl'), x=cv.getContext('2d');
+  x.fillStyle='#fbf8f1'; x.fillRect(0,0,cv.width,cv.height);
+  const draw=(layer)=>{
+    const s=Math.min(cv.width/layer.width,cv.height/layer.height);
+    x.drawImage(layer,cv.width/2-layer.width*s/2,cv.height/2-layer.height*s/2,layer.width*s,layer.height*s);
+  };
+  if(imgA) draw(tint(imgA,[40,38,35],0.9));
+  if(imgB) draw(tint(imgB,[181,57,47],document.getElementById('ovlA').value/100));
+}
+
+/* ───────── 내장 체본 (公有领域 명문 × OFL 서체) ───────── */
+const LIBFONTS={
+  kai:['Ma Shan Zheng','楷书'], xing:['Zhi Mang Xing','行书'],
+  xc:['Long Cang','行草'], cao:['Liu Jian Mao Cao','草书'], gu:['ZCOOL XiaoWei','古雅']
+};
+const SETS=[
+ {t:'千字文·一',k:'kai',x:'天地玄黄宇宙洪荒日月盈昃辰宿列张'},
+ {t:'千字文·二',k:'kai',x:'寒来暑往秋收冬藏闰余成岁律吕调阳'},
+ {t:'三字经',k:'kai',x:'人之初性本善性相近习相远'},
+ {t:'静夜思·李白',k:'kai',x:'床前明月光疑是地上霜举头望明月低头思故乡'},
+ {t:'登鹳雀楼·王之涣',k:'kai',x:'白日依山尽黄河入海流欲穷千里目更上一层楼'},
+ {t:'春晓·孟浩然',k:'kai',x:'春眠不觉晓处处闻啼鸟夜来风雨声花落知多少'},
+ {t:'悯农·李绅',k:'kai',x:'锄禾日当午汗滴禾下土谁知盘中餐粒粒皆辛苦'},
+ {t:'江雪·柳宗元',k:'kai',x:'千山鸟飞绝万径人踪灭孤舟蓑笠翁独钓寒江雪'},
+ {t:'论语·学而',k:'kai',x:'学而时习之不亦说乎有朋自远方来不亦乐乎'},
+ {t:'福禄寿喜',k:'kai',x:'福禄寿喜'},
+ {t:'家和万事兴',k:'kai',x:'家和万事兴'},
+ {t:'永字八法',k:'kai',x:'永'},
+ {t:'兰亭集序·一',k:'xing',x:'永和九年岁在癸丑暮春之初会于会稽山阴之兰亭'},
+ {t:'兰亭集序·二',k:'xing',x:'此地有崇山峻岭茂林修竹又有清流激湍映带左右'},
+ {t:'陋室铭·刘禹锡',k:'xing',x:'山不在高有仙则名水不在深有龙则灵'},
+ {t:'爱莲说·周敦颐',k:'xing',x:'出淤泥而不染濯清涟而不妖'},
+ {t:'相思·王维',k:'xing',x:'红豆生南国春来发几枝愿君多采撷此物最相思'},
+ {t:'送杜少府·王勃',k:'xing',x:'海内存知己天涯若比邻'},
+ {t:'道德经·八章',k:'xing',x:'上善若水水善利万物而不争'},
+ {t:'水调歌头·苏轼',k:'xing',x:'明月几时有把酒问青天'},
+ {t:'将进酒·李白',k:'xc',x:'君不见黄河之水天上来奔流到海不复回'},
+ {t:'望庐山瀑布·李白',k:'xc',x:'飞流直下三千尺疑是银河落九天'},
+ {t:'满江红·岳飞',k:'xc',x:'三十功名尘与土八千里路云和月'},
+ {t:'龟虽寿·曹操',k:'xc',x:'老骥伏枥志在千里烈士暮年壮心不已'},
+ {t:'天道酬勤',k:'xc',x:'天道酬勤'},
+ {t:'宁静致远',k:'xc',x:'宁静致远淡泊明志'},
+ {t:'早发白帝城·李白',k:'cao',x:'朝辞白帝彩云间千里江陵一日还'},
+ {t:'山行·杜牧',k:'cao',x:'停车坐爱枫林晚霜叶红于二月花'},
+ {t:'龙飞凤舞',k:'cao',x:'龙飞凤舞'},
+ {t:'海纳百川',k:'gu',x:'海纳百川有容乃大'},
+ {t:'厚德载物',k:'gu',x:'天行健君子以自强不息地势坤君子以厚德载物'},
+];
+let curSet=null, curIdx=0, libBuilt=false;
+
+function openLib(){
+  if(!libBuilt){ buildLib(); loadTie(); libBuilt=true; }
+  document.getElementById('lib').style.display='block';
+}
+function closeLib(){ document.getElementById('lib').style.display='none'; }
+
+function buildLib(){
+  const box=document.getElementById('libList'); box.innerHTML='';
+  ['kai','xing','xc','cao','gu'].forEach(k=>{
+    const h=document.createElement('h3'); h.textContent=LIBFONTS[k][1]; box.appendChild(h);
+    SETS.forEach((s,i)=>{
+      if(s.k!==k) return;
+      const b=document.createElement('button');
+      b.className='setbtn'; b.textContent=s.t;
+      b.onclick=()=>pickSet(i);
+      box.appendChild(b);
+    });
+  });
+}
+
+async function pickSet(i){
+  curSet=SETS[i]; curIdx=0; closeLib();
+  try{ await document.fonts.load('200px "'+LIBFONTS[curSet.k][0]+'"'); }catch(e){}
+  showChar();
+}
+
+function showChar(){
+  const ch=curSet.x[curIdx], fam=LIBFONTS[curSet.k][0];
+  const c=document.createElement('canvas'); c.width=1400; c.height=1400;
+  const x=c.getContext('2d');
+  x.fillStyle='#ffffff'; x.fillRect(0,0,1400,1400);
+  x.fillStyle='#1c1a17'; x.textAlign='center'; x.textBaseline='alphabetic';
+  x.font='1000px "'+fam+'"';
+  const m=x.measureText(ch);
+  const asc=m.actualBoundingBoxAscent||780, dsc=m.actualBoundingBoxDescent||120;
+  const gw=Math.max(m.width, m.actualBoundingBoxLeft+m.actualBoundingBoxRight||m.width);
+  const s=1080/Math.max(gw, asc+dsc);
+  x.font=Math.floor(1000*s)+'px "'+fam+'"';
+  const m2=x.measureText(ch);
+  const a2=m2.actualBoundingBoxAscent||asc*s, d2=m2.actualBoundingBoxDescent||dsc*s;
+  x.fillText(ch, 700, 700+(a2-d2)/2);
+  imgMain=c;
+  document.getElementById('empty').style.display='none';
+  resetView(); applyFilter(); drawImg(); updateNav();
+}
+
+function updateNav(){
+  const nav=document.getElementById('setNav'), strip=document.getElementById('charStrip');
+  if(!curSet){ nav.style.display='none'; strip.style.display='none'; return; }
+  nav.style.display='flex';
+  document.getElementById('setInfo').textContent=
+    curSet.t+' · '+LIBFONTS[curSet.k][1]+' · '+(curIdx+1)+'/'+curSet.x.length;
+  strip.style.display='block'; strip.innerHTML='';
+  [...curSet.x].forEach((ch,i)=>{
+    const b=document.createElement('button');
+    b.textContent=ch; if(i===curIdx) b.className='on';
+    b.onclick=()=>{curIdx=i; showChar();};
+    strip.appendChild(b);
+  });
+}
+
+function stepChar(d){
+  if(!curSet) return;
+  curIdx=(curIdx+d+curSet.x.length)%curSet.x.length;
+  showChar();
+}
+
+function clearBuiltin(){ curSet=null; updateNav(); }
+
+/* 자가 추가 碑帖 (assets/tie/) */
+function loadTie(){
+  if(!(window.AndroidBridge&&AndroidBridge.listTie)) return;
+  try{
+    const arr=JSON.parse(AndroidBridge.listTie());
+    if(!arr.length) return;
+    document.getElementById('tieHead').style.display='block';
+    const box=document.getElementById('tieList'); box.innerHTML='';
+    arr.forEach(name=>{
+      const b=document.createElement('button');
+      b.className='setbtn'; b.textContent=name.replace(/\.[^.]+$/,'');
+      b.onclick=()=>pickTie(name);
+      box.appendChild(b);
+    });
+  }catch(e){}
+}
+function pickTie(name){
+  try{
+    const b64=AndroidBridge.readTie(name);
+    if(!b64) return;
+    const ext=name.split('.').pop().toLowerCase();
+    const mime=ext==='png'?'image/png':(ext==='webp'?'image/webp':'image/jpeg');
+    const im=new Image();
+    im.onload=()=>{
+      imgMain=im; clearBuiltin();
+      document.getElementById('empty').style.display='none';
+      resetView(); applyFilter(); drawImg();
+    };
+    im.src='data:'+mime+';base64,'+b64;
+    closeLib();
+  }catch(e){}
+}
+
+/* ───────── AI 첨삭 ───────── */
+let aiPending={};
+window.onClaudeResult=function(id,b64,err){
+  const pnd=aiPending[id]; if(!pnd) return; delete aiPending[id];
+  if(err){ pnd.reject(new Error(err)); return; }
+  try{ pnd.resolve(JSON.parse(decodeURIComponent(escape(atob(b64))))); }
+  catch(e){ pnd.reject(e); }
+};
+function callClaude(body){
+  if(window.AndroidBridge && AndroidBridge.callClaude){
+    return new Promise((resolve,reject)=>{
+      let key='';
+      try{ key=(localStorage.getItem('apikey')||'').trim(); }catch(e){}
+      if(!key){ reject(new Error('NOKEY')); return; }
+      const id='r'+Date.now()+Math.random().toString(36).slice(2);
+      aiPending[id]={resolve,reject};
+      AndroidBridge.callClaude(id, key, JSON.stringify(body));
+    });
+  }
+  return fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(body)
+  }).then(r=>r.json());
+}
+function toJpeg(im){
+  const c=document.createElement('canvas');
+  const max=700, s=Math.min(1,max/Math.max(im.width,im.height));
+  c.width=im.width*s; c.height=im.height*s;
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+  return c.toDataURL('image/jpeg',0.85).split(',')[1];
+}
+
+async function runAI(){
+  const msg=document.getElementById('msg2');
+  msg.textContent='';
+  if(!imgA||!imgB){msg.textContent='请先上传原帖和自己写的字两张照片。'; return;}
+  const btn=document.getElementById('btnAI'), spin=document.getElementById('spin');
+  btn.disabled=true; spin.classList.add('on');
+  document.getElementById('report').style.display='none';
+  try{
+    const data=await callClaude({
+        model:'claude-sonnet-4-6', max_tokens:1000,
+        messages:[{role:'user',content:[
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:toJpeg(imgA)}},
+          {type:'image',source:{type:'base64',media_type:'image/jpeg',data:toJpeg(imgB)}},
+          {type:'text',text:
+'你是一位有四十年教学经验的书法老师。第一张图是原帖（范字），第二张是学生临写的字。请对比两者，用中文批改，语气鼓励但要具体。必须只输出下面的JSON，不要输出任何其他文字或markdown反引号。\n{"score": 0到100的整数,\n"stroke": "笔法批改 - 起笔收笔形态、笔画粗细变化、撇捺处理，与原帖对比（不超过2句）",\n"structure": "结构批改 - 字的重心、偏旁比例、笔画间距与留白（不超过2句）",\n"layout": "章法批改 - 多字时看行列对齐与字距，单字时看在格内的位置（不超过2句）",\n"ink": "墨法批改 - 墨色浓淡与洇墨，照片难以判断时如实说明（1句）",\n"one": "这次练习只改一个点 - 效果最大的一个纠正要点（1句）"}'}
+        ]}]
+    });
+    let text=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    text=text.replace(/```json|```/g,'').trim();
+    const j=JSON.parse(text);
+    showReport(j);
+    await saveRecord(j);
+  }catch(err){
+    if(err&&err.message==='NOKEY'){
+      msg.textContent='请先在「记录」页底部的设置中保存API密钥。';
+    }else if(err&&err.message==='HTTP_401'){
+      msg.textContent='API密钥不正确，请在设置中重新确认。';
+    }else{
+      msg.textContent='批改失败，请检查网络和照片后重试。';
+    }
+  }
+  btn.disabled=false; spin.classList.remove('on');
+}
+
+function showReport(j){
+  const r=document.getElementById('report');
+  r.innerHTML=
+    '<div class="score">'+j.score+'<span style="font-size:14px;color:var(--ink-soft)"> / 100</span></div>'+
+    '<h4>笔法</h4>'+esc(j.stroke)+
+    '<h4>结构</h4>'+esc(j.structure)+
+    '<h4>章法</h4>'+esc(j.layout)+
+    '<h4>墨法</h4>'+esc(j.ink)+
+    '<div class="one">这次只改一点：'+esc(j.one)+'</div>';
+  r.style.display='block';
+}
+function esc(s){const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML;}
+
+/* ───────── 기록 (window.storage) ───────── */
+async function loadRecords(){
+  try{
+    const v=localStorage.getItem('records');
+    if(v) mem.records=JSON.parse(v);
+  }catch(e){}
+}
+async function saveRecord(j){
+  mem.records.push({d:new Date().toISOString().slice(0,10), s:j.score, o:j.one});
+  if(mem.records.length>200) mem.records=mem.records.slice(-200);
+  try{ localStorage.setItem('records', JSON.stringify(mem.records)); }
+  catch(e){ storageOK=false; }
+}
+async function clearRecords(){
+  if(!confirm('确定要清空全部批改记录吗？')) return;
+  mem.records=[];
+  try{ localStorage.removeItem('records'); }catch(e){}
+  renderRecords();
+}
+function saveKey(){
+  try{
+    localStorage.setItem('apikey', document.getElementById('apiKey').value.trim());
+    document.getElementById('msg4').textContent='API密钥已保存。';
+  }catch(e){ document.getElementById('msg4').textContent='保存失败。'; }
+}
+function renderRecords(){
+  const rs=mem.records;
+  document.getElementById('stCnt').textContent=rs.length;
+  document.getElementById('stAvg').textContent=rs.length?Math.round(rs.reduce((a,b)=>a+b.s,0)/rs.length):'–';
+  document.getElementById('stBest').textContent=rs.length?Math.max(...rs.map(r=>r.s)):'–';
+  // 연속 일수
+  const days=[...new Set(rs.map(r=>r.d))].sort().reverse();
+  let streak=0, cur=new Date();
+  for(const d of days){
+    const dd=cur.toISOString().slice(0,10);
+    if(d===dd){streak++; cur.setDate(cur.getDate()-1);}
+    else if(streak===0 && d===new Date(Date.now()-864e5).toISOString().slice(0,10)){streak++; cur=new Date(Date.now()-1728e5);}
+    else break;
+  }
+  document.getElementById('stStreak').textContent=streak;
+  // 막대
+  const bars=document.getElementById('bars'); bars.innerHTML='';
+  rs.slice(-20).forEach(r=>{
+    const i=document.createElement('i');
+    i.style.height=Math.max(6,r.s*0.8)+'px'; i.title=r.d+' · '+r.s+'分';
+    bars.appendChild(i);
+  });
+  if(!rs.length) bars.innerHTML='<span style="font-size:12px;color:var(--ink-soft);align-self:center;margin:auto">完成批改后分数会累积在这里</span>';
+  // 목록
+  const ul=document.getElementById('recList'); ul.innerHTML='';
+  rs.slice().reverse().slice(0,30).forEach(r=>{
+    const li=document.createElement('li');
+    li.innerHTML='<b>'+r.s+'分</b><span>'+esc(r.o)+'</span><small style="color:var(--ink-soft)">'+r.d.slice(5)+'</small>';
+    ul.appendChild(li);
+  });
+  document.getElementById('msg4').textContent=storageOK?'':'存储不可用，记录仅在本页面保持。';
+}
+
+/* ───────── 초기화 ───────── */
+fitCanvas();
+loadRecords().then(renderRecords);
+try{ document.getElementById('apiKey').value=localStorage.getItem('apikey')||''; }catch(e){}
+// 시작 화면: 永字八法
+pickSet(SETS.findIndex(s=>s.t==='永字八法'));
+</script>
+</body>
+</html>

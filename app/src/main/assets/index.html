@@ -272,6 +272,7 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
     <button class="btn" id="btnMatch" onclick="autoMatch()">AI识字·自动配原帖</button>
     <span class="spin" id="spinM">识字中……正在从字库配帖。</span>
   </div>
+  <div class="msg" id="msgM"></div>
 
   <h2>重叠对比</h2>
   <p class="hint">原帖为墨色，自己的字为红色，笔画偏差一眼可见。</p>
@@ -702,8 +703,12 @@ async function drawRefGlyph(ch,famKey){
   return c;
 }
 async function autoMatch(){
-  const msg=document.getElementById('msg2'); msg.textContent='';
-  if(!imgB){ msg.textContent='请先上传"我写的字"照片，再点自动配帖。'; return; }
+  const msg=document.getElementById('msgM'); msg.textContent='';
+  if(!imgB){ msg.textContent='请先点右边"我写的字"上传照片，再点本按钮。'; return; }
+  if(window.AndroidBridge&&AndroidBridge.callClaude){
+    let key=''; try{ key=(localStorage.getItem('apikey')||'').trim(); }catch(e){}
+    if(!key){ msg.textContent='还没有设置 API Key：请到「记录」页最下方的设置里粘贴 Key 保存后再试。'; return; }
+  }
   const btn=document.getElementById('btnMatch'), sp=document.getElementById('spinM');
   btn.disabled=true; sp.classList.add('on');
   try{
@@ -725,8 +730,12 @@ async function autoMatch(){
     thumb(cvA,imgA); overlay();
     msg.textContent='已识别：'+ch+'（'+(j.style||'')+'），范字取自内置'+LIBFONTS[famKey][1]+'字库。不合适可点原帖框手动更换。';
   }catch(e){
-    if((e&&e.message)==='NOKEY') msg.textContent='请先在"记录"页设置里填入 API Key。';
-    else msg.textContent='识别失败：'+(e.message||e)+'。请重试或手动上传原帖。';
+    const m=(e&&e.message)?e.message:(''+e);
+    if(m==='NOKEY') msg.textContent='还没有设置 API Key：请到「记录」页最下方的设置里粘贴 Key 保存后再试。';
+    else if(m==='HTTP_401') msg.textContent='API Key 无效：请在「记录」页设置中重新确认。';
+    else if(m==='HTTP_429') msg.textContent='请求太频繁，请稍等片刻再试。';
+    else if(m==='NETWORK') msg.textContent='网络连接失败：请检查手机网络后重试。';
+    else msg.textContent='识别失败（'+m+'）。请重试或手动上传原帖。';
   }
   btn.disabled=false; sp.classList.remove('on');
 }

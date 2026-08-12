@@ -50,13 +50,13 @@ header{
 }
 .stamp{
   width:38px;height:38px; background:var(--seal); color:#f7ecdd;
-  font-family:"KaiTi","STKaiti","Noto Serif SC",serif; font-weight:700;
+  font-family:"Ma Shan Zheng","KaiTi","STKaiti",serif; font-weight:400;
   display:flex;align-items:center;justify-content:center;
   font-size:17px; line-height:1.05; text-align:center;
   border-radius:4px; box-shadow:0 1px 0 rgba(0,0,0,.25);
   letter-spacing:1px;
 }
-header h1{font-family:"KaiTi","STKaiti","Noto Serif SC",serif; font-size:20px; letter-spacing:6px}
+header h1{font-family:"Ma Shan Zheng","KaiTi","STKaiti",serif; font-size:24px; letter-spacing:4px}
 header small{color:var(--ink-soft); font-size:11px; letter-spacing:1px}
 nav{display:flex; border-bottom:1px solid var(--line); padding:0 8px}
 nav button{
@@ -254,7 +254,7 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
 
 <!-- ───────── 탭2 첨삭 ───────── -->
 <section id="t2" class="tab">
-  <p class="hint">分别上传原帖字和自己写的字，先重叠对比，再由AI从笔法、结构、章法、墨法四个维度批改。</p>
+  <p class="hint">上传自己写的字后，可点"AI识字·自动配原帖"自动从字库生成范字（也可手动上传原帖）。先重叠对比，再由AI从笔法、结构、章法、墨法四个维度批改。</p>
   <div class="cmpwrap">
     <div class="cmpbox">
       <canvas id="cvA" width="340" height="340" onclick="fileA.click()"></canvas>
@@ -266,6 +266,11 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
       <span>我写的字（点击上传）</span>
       <input type="file" id="fileB" accept="image/*" hidden>
     </div>
+  </div>
+
+  <div class="row">
+    <button class="btn" id="btnMatch" onclick="autoMatch()">AI识字·自动配原帖</button>
+    <span class="spin" id="spinM">识字中……正在从字库配帖。</span>
   </div>
 
   <h2>重叠对比</h2>
@@ -683,6 +688,49 @@ function overlay(){
   if(imgB) draw(tint(imgB,[181,57,47],document.getElementById('ovlA').value/100));
 }
 
+/* ───────── AI 식자 자동 배첩 ───────── */
+const STYLE2FONT={'楷书':'kai','行书':'xing','行草':'xc','草书':'cao','隶书':'gu'};
+async function drawRefGlyph(ch,famKey){
+  const fam=LIBFONTS[famKey][0];
+  try{ await document.fonts.load('400px "'+fam+'"', ch); }catch(e){}
+  const c=document.createElement('canvas'); c.width=1000; c.height=1000;
+  const x=c.getContext('2d');
+  x.fillStyle='#ffffff'; x.fillRect(0,0,1000,1000);
+  x.fillStyle='#1c1a17'; x.textBaseline='middle'; x.textAlign='center';
+  x.font='620px "'+fam+'"';
+  x.fillText(ch,500,540);
+  return c;
+}
+async function autoMatch(){
+  const msg=document.getElementById('msg2'); msg.textContent='';
+  if(!imgB){ msg.textContent='请先上传"我写的字"照片，再点自动配帖。'; return; }
+  const btn=document.getElementById('btnMatch'), sp=document.getElementById('spinM');
+  btn.disabled=true; sp.classList.add('on');
+  try{
+    const data=await callClaude({
+      model:'claude-sonnet-4-6', max_tokens:200,
+      messages:[{role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:toJpeg(imgB)}},
+        {type:'text',text:'图中是一个毛笔字。识别它是哪个汉字，并判断书体。只输出JSON，不要任何其他文字：{"char":"一个汉字","style":"楷书|行书|行草|草书|隶书|其他"}'}
+      ]}]
+    });
+    if(data&&data.error) throw new Error(data.error.message||'API错误');
+    let t=(data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    t=t.replace(/```json|```/g,'').trim();
+    const j=JSON.parse(t);
+    const ch=(j.char||'').trim().charAt(0);
+    if(!ch) throw new Error('未识别出汉字');
+    const famKey=STYLE2FONT[j.style]||'kai';
+    imgA=await drawRefGlyph(ch,famKey);
+    thumb(cvA,imgA); overlay();
+    msg.textContent='已识别：'+ch+'（'+(j.style||'')+'），范字取自内置'+LIBFONTS[famKey][1]+'字库。不合适可点原帖框手动更换。';
+  }catch(e){
+    if((e&&e.message)==='NOKEY') msg.textContent='请先在"记录"页设置里填入 API Key。';
+    else msg.textContent='识别失败：'+(e.message||e)+'。请重试或手动上传原帖。';
+  }
+  btn.disabled=false; sp.classList.remove('on');
+}
+
 /* ───────── 내장 체본 (公有领域 명문 × OFL 서체) ───────── */
 const LIBFONTS={
   kai:['Ma Shan Zheng','楷书'], xing:['Zhi Mang Xing','行书'],
@@ -745,7 +793,7 @@ function buildLib(){
     });
   });
   const h=document.createElement('h3'); h.textContent='碑帖拓本（手书临本·隶书）'; box.appendChild(h);
-  [['张迁碑·逐字',0],['张迁碑·整页',1]].forEach(([t,w])=>{
+  [['老师·逐字',0],['老师·整页',1]].forEach(([t,w])=>{
     const b=document.createElement('button');
     b.className='setbtn'; b.textContent=t;
     b.onclick=()=>pickImg(w);
@@ -764,7 +812,7 @@ function pickImg(which){
   const items = which===0
     ? ZQB.chars.slice()
     : ZQB.pages.map((p,i)=>[i,0,0,1000,1000]);
-  curSet={kind:'img', t:(which===0?'张迁碑·逐字':'张迁碑·整页'), items:items};
+  curSet={kind:'img', t:(which===0?'老师·逐字':'老师·整页'), items:items};
   curIdx=0; uploadedImg=null; closeLib();
   document.getElementById('saveRow').style.display='none';
   showChar();

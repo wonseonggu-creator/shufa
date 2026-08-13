@@ -473,7 +473,10 @@ chipGroup('grid', v=>{gridType=v; drawGrid();});
 chipGroup('cells', v=>{cells=+v; drawGrid();});
 chipGroup('f', v=>{filter=v; drawImg();});
 document.getElementById('gridA').oninput=drawGrid;
-document.getElementById('zoom').oninput=e=>{scale=e.target.value/100; drawImg();};
+document.getElementById('zoom').oninput=e=>{
+  const ns=Math.min(6,Math.max(.5,e.target.value/100));
+  const k=ns/scale; ox*=k; oy*=k; scale=ns; drawImg();
+};
 
 /* ───────── 체본 이미지 로드/보정 ───────── */
 const stage=document.getElementById('stage');
@@ -554,6 +557,9 @@ function drawImg(){
   const iw=procCanvas.width, ih=procCanvas.height;
   const base=Math.min(W/iw, H/ih)*scale;
   const dw=iw*base, dh=ih*base;
+  const mx=(dw+W)/2-60, my=(dh+H)/2-60;
+  ox=Math.max(-mx,Math.min(mx,ox));
+  oy=Math.max(-my,Math.min(my,oy));
   cxI.drawImage(procCanvas, W/2-dw/2+ox, H/2-dh/2+oy, dw, dh);
 }
 
@@ -594,24 +600,52 @@ function toggleCover(){document.getElementById('cover').classList.toggle('on');}
 
 /* ───────── 팬/핀치 ───────── */
 let pts=new Map(), lastDist=0;
-stage.addEventListener('pointerdown',e=>{pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); stage.setPointerCapture(e.pointerId);});
+function bufRatio(){
+  const r=stage.getBoundingClientRect();
+  return r.width ? cvImg.width/r.width : 2;
+}
+function setScaleAt(ns, cx, cy){
+  ns=Math.min(6,Math.max(.5,ns));
+  const r=stage.getBoundingClientRect(), k2=bufRatio();
+  const mx=(cx-r.left)*k2-cvImg.width/2;
+  const my=(cy-r.top)*k2-cvImg.height/2;
+  const k=ns/scale;
+  ox=mx-k*(mx-ox);
+  oy=my-k*(my-oy);
+  scale=ns;
+  document.getElementById('zoom').value=scale*100;
+  drawImg();
+}
+stage.addEventListener('pointerdown',e=>{
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  try{ stage.setPointerCapture(e.pointerId); }catch(err){}
+  if(pts.size>=2) lastDist=0;
+});
 stage.addEventListener('pointermove',e=>{
   if(!pts.has(e.pointerId)) return;
-  const p=pts.get(e.pointerId);
+  const prev=pts.get(e.pointerId);
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pts.size===1){
-    ox+=(e.clientX-p.x)*2; oy+=(e.clientY-p.y)*2; drawImg();
+    const k2=bufRatio();
+    ox+=(e.clientX-prev.x)*k2;
+    oy+=(e.clientY-prev.y)*k2;
+    drawImg();
   }else if(pts.size===2){
     const arr=[...pts.values()];
-    const other=arr.find(v=>v!==p);
-    const d=Math.hypot(e.clientX-other.x, e.clientY-other.y);
-    if(lastDist>0){ scale=Math.min(6,Math.max(.5,scale*d/lastDist));
-      document.getElementById('zoom').value=scale*100; drawImg(); }
+    const d=Math.hypot(arr[0].x-arr[1].x, arr[0].y-arr[1].y);
+    const cx=(arr[0].x+arr[1].x)/2, cy=(arr[0].y+arr[1].y)/2;
+    if(lastDist>0) setScaleAt(scale*d/lastDist, cx, cy);
     lastDist=d;
   }
-  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
 });
-['pointerup','pointercancel','pointerout'].forEach(ev=>stage.addEventListener(ev,e=>{pts.delete(e.pointerId); if(pts.size<2)lastDist=0;}));
-stage.addEventListener('wheel',e=>{e.preventDefault(); scale=Math.min(6,Math.max(.5,scale*(e.deltaY<0?1.1:0.9))); document.getElementById('zoom').value=scale*100; drawImg();},{passive:false});
+['pointerup','pointercancel','lostpointercapture'].forEach(ev=>stage.addEventListener(ev,e=>{
+  pts.delete(e.pointerId);
+  if(pts.size<2) lastDist=0;
+}));
+stage.addEventListener('wheel',e=>{
+  e.preventDefault();
+  setScaleAt(scale*(e.deltaY<0?1.1:0.9), e.clientX, e.clientY);
+},{passive:false});
 
 /* ───────── 인쇄용 체본 ───────── */
 function togglePrint(){

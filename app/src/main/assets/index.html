@@ -714,16 +714,63 @@ async function drawRefGlyph(ch,famKey){
   return c;
 }
 
-/* ---- 离线相似字匹配（无需联网） ---- */
+/* ---- 离线相似字匹配 v3（无需联网） ---- */
 let MATCH_DB=null;
 function loadPageP(pi){ return new Promise(res=>getPage(pi,res)); }
-function ccClean(ink,S){
+function toInk(src,w,h){
+  const S=160;
+  const c=document.createElement('canvas'); c.width=S; c.height=S;
+  const x=c.getContext('2d');
+  x.fillStyle='#ffffff'; x.fillRect(0,0,S,S);
+  const sc=Math.min(S/w,S/h);
+  x.drawImage(src,(S-w*sc)/2,(S-h*sc)/2,w*sc,h*sc);
+  const d=x.getImageData(0,0,S,S).data;
+  const lum=new Float32Array(S*S);
+  let redCnt=0;
+  for(let i=0;i<S*S;i++){
+    const R=d[i*4],G=d[i*4+1],B=d[i*4+2];
+    if(R>G+30&&R>B+45){ lum[i]=255; redCnt++; }
+    else lum[i]=R*0.3+G*0.59+B*0.11;
+  }
+  const srt=Float32Array.from(lum); srt.sort();
+  const bg=srt[Math.floor(S*S*0.85)];
+  let thr=bg-Math.max(30,bg*0.25);
+  let ink=new Uint8Array(S*S), cnt=0;
+  for(let i=0;i<S*S;i++){ if(lum[i]<thr){ ink[i]=1; cnt++; } }
+  if(cnt<40){
+    thr=srt[Math.floor(S*S*0.5)]*0.85; cnt=0;
+    for(let i=0;i<S*S;i++){ ink[i]=lum[i]<thr?1:0; cnt+=ink[i]; }
+  }
+  if(cnt<20) return null;
+  if(redCnt>S*S*0.01){
+    // 3x3 클로징 (격자선 제거로 끊긴 획 연결)
+    const dil=new Uint8Array(S*S);
+    for(let y=0;y<S;y++)for(let xx=0;xx<S;xx++){
+      let v=0;
+      for(let dy=-1;dy<=1&&!v;dy++)for(let dx=-1;dx<=1&&!v;dx++){
+        const yy=y+dy,xx2=xx+dx;
+        if(yy>=0&&yy<S&&xx2>=0&&xx2<S&&ink[yy*S+xx2]) v=1;
+      }
+      dil[y*S+xx]=v;
+    }
+    const ero=new Uint8Array(S*S);
+    for(let y=0;y<S;y++)for(let xx=0;xx<S;xx++){
+      let v=1;
+      for(let dy=-1;dy<=1&&v;dy++)for(let dx=-1;dx<=1&&v;dx++){
+        const yy=y+dy,xx2=xx+dx;
+        if(yy<0||yy>=S||xx2<0||xx2>=S||!dil[yy*S+xx2]) v=0;
+      }
+      ero[y*S+xx]=v;
+    }
+    ink=ero;
+  }
+  // 성분 필터: 잡티(<12) + 솔리드 블록(검은바/나무: sz>2000 & fill>=0.55) 제거
   const lab=new Int32Array(S*S); let nl=0;
-  const stack=[]; const info=[];
+  const stack=[], info=[];
   for(let i=0;i<S*S;i++){
     if(!ink[i]||lab[i]) continue;
-    nl++; lab[i]=nl; stack.push(i);
-    let sz=0, y0=S, y1=0, x0=S, x1=0;
+    nl++; lab[i]=nl; stack.length=0; stack.push(i);
+    let sz=0,y0=S,y1=0,x0=S,x1=0;
     while(stack.length){
       const p=stack.pop(); sz++;
       const py=(p/S)|0, px=p%S;
@@ -734,105 +781,77 @@ function ccClean(ink,S){
       if(py>0&&ink[p-S]&&!lab[p-S]){lab[p-S]=nl;stack.push(p-S);}
       if(py<S-1&&ink[p+S]&&!lab[p+S]){lab[p+S]=nl;stack.push(p+S);}
     }
-    info.push({sz:sz,y0:y0,y1:y1,x0:x0,x1:x1});
+    info.push({sz:sz,fill:sz/((y1-y0+1)*(x1-x0+1))});
   }
-  if(!nl) return;
-  let big=0;
-  for(const c of info) if(c.sz>big) big=c.sz;
   const keep=new Uint8Array(nl+1);
   for(let i=0;i<nl;i++){
-    const c=info[i];
-    const border=(c.y0<=1||c.x0<=1||c.y1>=S-2||c.x1>=S-2);
-    if(border&&c.sz<big*0.5) continue;
-    if(c.sz<12) continue;
+    const c2=info[i];
+    if(c2.sz<12) continue;
+    if(c2.sz>2000&&c2.fill>=0.55) continue;
     keep[i+1]=1;
   }
-  for(let i=0;i<S*S;i++) ink[i]=keep[lab[i]];
+  let left=0;
+  for(let i=0;i<S*S;i++){ ink[i]=keep[lab[i]]; left+=ink[i]; }
+  if(left<20) return null;
+  return ink;
 }
-function binFeat(src,w,h){
-  const S=160;
-  const c=document.createElement('canvas'); c.width=S; c.height=S;
-  const x=c.getContext('2d');
-  x.fillStyle='#ffffff'; x.fillRect(0,0,S,S);
-  const sc=Math.min(S/w,S/h);
-  x.drawImage(src,(S-w*sc)/2,(S-h*sc)/2,w*sc,h*sc);
-  const d=x.getImageData(0,0,S,S).data;
-  const lum=new Float32Array(S*S);
-  for(let i=0;i<S*S;i++) lum[i]=d[i*4]*0.3+d[i*4+1]*0.59+d[i*4+2]*0.11;
-  const srt=Float32Array.from(lum); srt.sort();
-  const bg=srt[Math.floor(S*S*0.85)];
-  let thr=bg-Math.max(30,bg*0.25);
-  const ink=new Uint8Array(S*S); let cnt=0;
-  for(let i=0;i<S*S;i++){ if(lum[i]<thr){ ink[i]=1; cnt++; } }
-  if(cnt<40){
-    thr=srt[Math.floor(S*S*0.5)]*0.85; cnt=0;
-    for(let i=0;i<S*S;i++){ ink[i]=lum[i]<thr?1:0; cnt+=ink[i]; }
-  }
-  if(cnt<20) return null;
-  ccClean(ink,S);
+function bboxOf(ink,S,ry0,ry1,rx0,rx1){
   const rows=new Float32Array(S), cols=new Float32Array(S);
-  for(let y=0;y<S;y++)for(let xx=0;xx<S;xx++){ const v=ink[y*S+xx]; rows[y]+=v; cols[xx]+=v; }
+  for(let y=ry0;y<=ry1;y++)for(let xx=rx0;xx<=rx1;xx++){
+    const v=ink[y*S+xx]; rows[y]+=v; cols[xx]+=v;
+  }
   let rmax=0,cmax=0;
   for(let i=0;i<S;i++){ if(rows[i]>rmax)rmax=rows[i]; if(cols[i]>cmax)cmax=cols[i]; }
-  let y0=0,y1=S-1,x0=0,x1=S-1;
-  while(y0<S&&rows[y0]<=rmax*0.04)y0++;
-  while(y1>0&&rows[y1]<=rmax*0.04)y1--;
-  while(x0<S&&cols[x0]<=cmax*0.04)x0++;
-  while(x1>0&&cols[x1]<=cmax*0.04)x1--;
+  if(rmax<1||cmax<1) return null;
+  let y0=ry0,y1=ry1,x0=rx0,x1=rx1;
+  while(y0<ry1&&rows[y0]<=rmax*0.04)y0++;
+  while(y1>ry0&&rows[y1]<=rmax*0.04)y1--;
+  while(x0<rx1&&cols[x0]<=cmax*0.04)x0++;
+  while(x1>rx0&&cols[x1]<=cmax*0.04)x1--;
   if(y1-y0<6||x1-x0<6) return null;
+  return [y0,y1,x0,x1];
+}
+function gridOf(ink,S,bb){
+  const y0=bb[0],y1=bb[1],x0=bb[2],x1=bb[3];
   const bw=x1-x0+1, bh=y1-y0+1;
-  // 64x64 커버리지 리샘플
   const b=new Float32Array(64*64);
   for(let ty=0;ty<64;ty++){
     const sy0=y0+ty/64*bh, sy1=y0+(ty+1)/64*bh;
     for(let tx=0;tx<64;tx++){
       const sx0=x0+tx/64*bw, sx1=x0+(tx+1)/64*bw;
-      let acc=0, n=0;
-      for(let sy=Math.floor(sy0); sy<sy1; sy++){
-        for(let sx=Math.floor(sx0); sx<sx1; sx++){
-          acc+=ink[sy*S+sx]; n++;
-        }
+      let acc=0,n=0;
+      for(let sy=Math.floor(sy0);sy<sy1;sy++)for(let sx=Math.floor(sx0);sx<sx1;sx++){
+        acc+=ink[sy*S+sx]; n++;
       }
       b[ty*64+tx]=n?acc/n:0;
     }
   }
-  // 블러 (분리형 [1,4,6,4,1]/16)
   const k=[1/16,4/16,6/16,4/16,1/16];
   const tmp=new Float32Array(64*64);
   for(let y=0;y<64;y++)for(let xx=0;xx<64;xx++){
     let v=0;
-    for(let j=-2;j<=2;j++){
-      const xi=Math.min(63,Math.max(0,xx+j));
-      v+=b[y*64+xi]*k[j+2];
-    }
+    for(let j=-2;j<=2;j++){ const xi=Math.min(63,Math.max(0,xx+j)); v+=b[y*64+xi]*k[j+2]; }
     tmp[y*64+xx]=v;
   }
   for(let y=0;y<64;y++)for(let xx=0;xx<64;xx++){
     let v=0;
-    for(let j=-2;j<=2;j++){
-      const yi=Math.min(63,Math.max(0,y+j));
-      v+=tmp[yi*64+xx]*k[j+2];
-    }
+    for(let j=-2;j<=2;j++){ const yi=Math.min(63,Math.max(0,y+j)); v+=tmp[yi*64+xx]*k[j+2]; }
     b[y*64+xx]=v;
   }
-  // 그래디언트 → 8방향 16x16 히스토그램
   const B=new Float32Array(16*16*8);
-  for(let y=1;y<63;y++){
-    for(let xx=1;xx<63;xx++){
-      const gx=(b[y*64+xx+1]-b[y*64+xx-1])/2;
-      const gy=(b[(y+1)*64+xx]-b[(y-1)*64+xx])/2;
-      const mag=Math.hypot(gx,gy);
-      if(mag<1e-6) continue;
-      let ang=Math.atan2(gy,gx);
-      if(ang<0) ang+=Math.PI;
-      if(ang>=Math.PI) ang-=Math.PI;
-      let bin=Math.floor(ang/Math.PI*8);
-      if(bin>7) bin=7;
-      B[(((y>>2)*16)+(xx>>2))*8+bin]+=mag;
-    }
+  for(let y=1;y<63;y++)for(let xx=1;xx<63;xx++){
+    const gx=(b[y*64+xx+1]-b[y*64+xx-1])/2;
+    const gy=(b[(y+1)*64+xx]-b[(y-1)*64+xx])/2;
+    const mag=Math.hypot(gx,gy);
+    if(mag<1e-6) continue;
+    let ang=Math.atan2(gy,gx);
+    if(ang<0) ang+=Math.PI;
+    if(ang>=Math.PI) ang-=Math.PI;
+    let bin=Math.floor(ang/Math.PI*8);
+    if(bin>7) bin=7;
+    B[(((y>>2)*16)+(xx>>2))*8+bin]+=mag;
   }
-  // 공간 스무딩 (방향별 3x3 박스 2회)
-  const P2=new Float32Array(16*16);
+  const P2=new Float32Array(256);
   for(let ch=0;ch<8;ch++){
     for(let i=0;i<256;i++) P2[i]=B[i*8+ch];
     for(let it=0;it<2;it++){
@@ -855,10 +874,59 @@ function binFeat(src,w,h){
   for(let i=0;i<B.length;i++) B[i]/=nrm;
   return {v:B, ar:bw/bh};
 }
-function simOf(a,b){
-  let sm=0;
-  for(let i=0;i<a.v.length;i++) sm+=a.v[i]*b.v[i];
-  return sm-0.10*Math.abs(a.ar-b.ar)/(a.ar+b.ar);
+function inkSum(ink,S,y0,y1,x0,x1){
+  let t=0;
+  for(let y=y0;y<=y1;y++)for(let xx=x0;xx<=x1;xx++) t+=ink[y*S+xx];
+  return t;
+}
+function featVariants(src,w,h){
+  const S=160;
+  const ink=toInk(src,w,h);
+  if(!ink) return [];
+  const bb=bboxOf(ink,S,0,S-1,0,S-1);
+  if(!bb) return [];
+  const out=[gridOf(ink,S,bb)];
+  const bh=bb[1]-bb[0]+1, bw=bb[3]-bb[2]+1;
+  const ar=bw/bh;
+  if(ar>1.55){
+    const colp=new Float32Array(bw);
+    for(let y=bb[0];y<=bb[1];y++)for(let xx=bb[2];xx<=bb[3];xx++) colp[xx-bb[2]]+=ink[y*S+xx];
+    let cut=Math.floor(bw*0.3), mv=1e9;
+    for(let i=Math.floor(bw*0.3);i<Math.floor(bw*0.7);i++){ if(colp[i]<mv){mv=colp[i];cut=i;} }
+    const parts=[[bb[2],bb[2]+cut],[bb[2]+cut,bb[3]]];
+    for(const pr of parts){
+      const b2=bboxOf(ink,S,bb[0],bb[1],pr[0],pr[1]);
+      if(b2&&inkSum(ink,S,b2[0],b2[1],b2[2],b2[3])>=60) out.push(gridOf(ink,S,b2));
+    }
+  }
+  if(ar<0.64){
+    const rowp=new Float32Array(bh);
+    for(let y=bb[0];y<=bb[1];y++)for(let xx=bb[2];xx<=bb[3];xx++) rowp[y-bb[0]]+=ink[y*S+xx];
+    let cut=Math.floor(bh*0.3), mv=1e9;
+    for(let i=Math.floor(bh*0.3);i<Math.floor(bh*0.7);i++){ if(rowp[i]<mv){mv=rowp[i];cut=i;} }
+    const parts=[[bb[0],bb[0]+cut],[bb[0]+cut,bb[1]]];
+    for(const pr of parts){
+      const b2=bboxOf(ink,S,pr[0],pr[1],bb[2],bb[3]);
+      if(b2&&inkSum(ink,S,b2[0],b2[1],b2[2],b2[3])>=60) out.push(gridOf(ink,S,b2));
+    }
+  }
+  return out;
+}
+function featFull(src,w,h){
+  const v=featVariants(src,w,h);
+  return v.length?v[0]:null;
+}
+function shiftedVec(v,dy,dx){
+  const o=new Float32Array(2048);
+  for(let y=0;y<16;y++){
+    const sy=y-dy; if(sy<0||sy>15) continue;
+    for(let x=0;x<16;x++){
+      const sx=x-dx; if(sx<0||sx>15) continue;
+      const a=(y*16+x)*8, b=(sy*16+sx)*8;
+      for(let k=0;k<8;k++) o[a+k]=v[b+k];
+    }
+  }
+  return o;
 }
 async function buildMatchDB(){
   const db=[];
@@ -879,7 +947,7 @@ async function buildMatchDB(){
       cx.fillStyle='#fff'; cx.fillRect(0,0,160,160);
       const s2=Math.min(160/sw,160/sh);
       cx.drawImage(im,sx,sy,sw,sh,(160-sw*s2)/2,(160-sh*s2)/2,sw*s2,sh*s2);
-      const f=binFeat(cv,160,160);
+      const f=featFull(cv,160,160);
       if(f) db.push({f:f,ch:L,kind:'shi',item:c});
     }
     await new Promise(r=>setTimeout(r,0));
@@ -899,7 +967,7 @@ async function buildMatchDB(){
       cx.fillStyle='#000'; cx.textAlign='center'; cx.textBaseline='middle';
       cx.font='120px "'+LIBFONTS[st.k][0]+'"';
       cx.fillText(ch,80,88);
-      const f=binFeat(cv,160,160);
+      const f=featFull(cv,160,160);
       if(f) db.push({f:f,ch:ch,kind:'font',fk:st.k});
     }
   }
@@ -914,9 +982,27 @@ async function localMatch(){
   try{
     await new Promise(r=>setTimeout(r,30));
     if(!MATCH_DB) MATCH_DB=await buildMatchDB();
-    const q=binFeat(imgB,imgB.width,imgB.height);
-    if(!q) throw new Error('\u7167\u7247\u91cc\u627e\u4e0d\u5230\u6e05\u6670\u7684\u5b57\uff0c\u8bf7\u62cd\u6b63\u3001\u62cd\u6e05\u695a\u4e00\u70b9');
-    const scored=MATCH_DB.map(e=>({e:e,s:simOf(q,e.f)+(e.kind==='shi'?0.02:0)}));
+    const qv=featVariants(imgB,imgB.width,imgB.height);
+    if(!qv.length) throw new Error('\u7167\u7247\u91cc\u627e\u4e0d\u5230\u6e05\u6670\u7684\u5b57\uff0c\u8bf7\u62cd\u6b63\u3001\u62cd\u6e05\u695a\u4e00\u70b9');
+    const qsets=qv.map(q=>({
+      sv:[q.v, shiftedVec(q.v,0,1), shiftedVec(q.v,0,-1), shiftedVec(q.v,1,0), shiftedVec(q.v,-1,0)],
+      ar:q.ar
+    }));
+    const scored=MATCH_DB.map(e=>{
+      let best=-9;
+      const tv=e.f.v, tar=e.f.ar;
+      for(const qs of qsets){
+        let m=0;
+        for(const sv of qs.sv){
+          let sdot=0;
+          for(let i=0;i<2048;i++) sdot+=sv[i]*tv[i];
+          if(sdot>m) m=sdot;
+        }
+        m-=0.10*Math.abs(qs.ar-tar)/(qs.ar+tar);
+        if(m>best) best=m;
+      }
+      return {e:e, s:best+(e.kind==='shi'?0.02:0)};
+    });
     scored.sort((a,b)=>b.s-a.s);
     const out=[], used={};
     for(const it of scored){

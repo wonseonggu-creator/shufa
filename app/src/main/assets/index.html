@@ -254,7 +254,7 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
 
 <!-- ───────── 탭2 첨삭 ───────── -->
 <section id="t2" class="tab">
-  <p class="hint">上传自己写的字后，可点"AI识字·自动配原帖"自动从字库生成范字（也可手动上传原帖）。先重叠对比，再由AI从笔法、结构、章法、墨法四个维度批改。</p>
+  <p class="hint">上传自己写的字后，点"自动配原帖"：无需联网、无需Key，在本机字库（单琨老师字 + 内置字帖）中找出相同的字作原帖，也可手动上传。仅最后的AI批改需要API Key。</p>
   <div class="cmpwrap">
     <div class="cmpbox">
       <canvas id="cvA" width="340" height="340" onclick="fileA.click()"></canvas>
@@ -269,10 +269,14 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
   </div>
 
   <div class="row">
-    <button class="btn" id="btnMatch" onclick="autoMatch()">AI识字·自动配原帖</button>
-    <span class="spin" id="spinM">识字中……正在从字库配帖。</span>
+    <button class="btn" id="btnMatch" onclick="localMatch()">自动配原帖（离线识别）</button>
+    <span class="spin" id="spinM">正在本机识别……首次需准备字库，稍候几秒。</span>
   </div>
   <div class="msg" id="msgM"></div>
+  <div id="candWrap" style="display:none">
+    <p class="hint">请点选正确的字（单琨=老师手书）：</p>
+    <div id="cands" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px"></div>
+  </div>
 
   <h2>重叠对比</h2>
   <p class="hint">原帖为墨色，自己的字为红色，笔画偏差一眼可见。</p>
@@ -709,6 +713,262 @@ async function drawRefGlyph(ch,famKey){
   x.fillText(ch,500,540);
   return c;
 }
+
+/* ---- 离线相似字匹配（无需联网） ---- */
+let MATCH_DB=null;
+function loadPageP(pi){ return new Promise(res=>getPage(pi,res)); }
+function ccClean(ink,S){
+  const lab=new Int32Array(S*S); let nl=0;
+  const stack=[]; const info=[];
+  for(let i=0;i<S*S;i++){
+    if(!ink[i]||lab[i]) continue;
+    nl++; lab[i]=nl; stack.push(i);
+    let sz=0, y0=S, y1=0, x0=S, x1=0;
+    while(stack.length){
+      const p=stack.pop(); sz++;
+      const py=(p/S)|0, px=p%S;
+      if(py<y0)y0=py; if(py>y1)y1=py;
+      if(px<x0)x0=px; if(px>x1)x1=px;
+      if(px>0&&ink[p-1]&&!lab[p-1]){lab[p-1]=nl;stack.push(p-1);}
+      if(px<S-1&&ink[p+1]&&!lab[p+1]){lab[p+1]=nl;stack.push(p+1);}
+      if(py>0&&ink[p-S]&&!lab[p-S]){lab[p-S]=nl;stack.push(p-S);}
+      if(py<S-1&&ink[p+S]&&!lab[p+S]){lab[p+S]=nl;stack.push(p+S);}
+    }
+    info.push({sz:sz,y0:y0,y1:y1,x0:x0,x1:x1});
+  }
+  if(!nl) return;
+  let big=0;
+  for(const c of info) if(c.sz>big) big=c.sz;
+  const keep=new Uint8Array(nl+1);
+  for(let i=0;i<nl;i++){
+    const c=info[i];
+    const border=(c.y0<=1||c.x0<=1||c.y1>=S-2||c.x1>=S-2);
+    if(border&&c.sz<big*0.5) continue;
+    if(c.sz<12) continue;
+    keep[i+1]=1;
+  }
+  for(let i=0;i<S*S;i++) ink[i]=keep[lab[i]];
+}
+function binFeat(src,w,h){
+  const S=160;
+  const c=document.createElement('canvas'); c.width=S; c.height=S;
+  const x=c.getContext('2d');
+  x.fillStyle='#ffffff'; x.fillRect(0,0,S,S);
+  const sc=Math.min(S/w,S/h);
+  x.drawImage(src,(S-w*sc)/2,(S-h*sc)/2,w*sc,h*sc);
+  const d=x.getImageData(0,0,S,S).data;
+  const lum=new Float32Array(S*S);
+  for(let i=0;i<S*S;i++) lum[i]=d[i*4]*0.3+d[i*4+1]*0.59+d[i*4+2]*0.11;
+  const srt=Float32Array.from(lum); srt.sort();
+  const bg=srt[Math.floor(S*S*0.85)];
+  let thr=bg-Math.max(30,bg*0.25);
+  const ink=new Uint8Array(S*S); let cnt=0;
+  for(let i=0;i<S*S;i++){ if(lum[i]<thr){ ink[i]=1; cnt++; } }
+  if(cnt<40){
+    thr=srt[Math.floor(S*S*0.5)]*0.85; cnt=0;
+    for(let i=0;i<S*S;i++){ ink[i]=lum[i]<thr?1:0; cnt+=ink[i]; }
+  }
+  if(cnt<20) return null;
+  ccClean(ink,S);
+  const rows=new Float32Array(S), cols=new Float32Array(S);
+  for(let y=0;y<S;y++)for(let xx=0;xx<S;xx++){ const v=ink[y*S+xx]; rows[y]+=v; cols[xx]+=v; }
+  let rmax=0,cmax=0;
+  for(let i=0;i<S;i++){ if(rows[i]>rmax)rmax=rows[i]; if(cols[i]>cmax)cmax=cols[i]; }
+  let y0=0,y1=S-1,x0=0,x1=S-1;
+  while(y0<S&&rows[y0]<=rmax*0.04)y0++;
+  while(y1>0&&rows[y1]<=rmax*0.04)y1--;
+  while(x0<S&&cols[x0]<=cmax*0.04)x0++;
+  while(x1>0&&cols[x1]<=cmax*0.04)x1--;
+  if(y1-y0<6||x1-x0<6) return null;
+  const bw=x1-x0+1, bh=y1-y0+1;
+  // 64x64 커버리지 리샘플
+  const b=new Float32Array(64*64);
+  for(let ty=0;ty<64;ty++){
+    const sy0=y0+ty/64*bh, sy1=y0+(ty+1)/64*bh;
+    for(let tx=0;tx<64;tx++){
+      const sx0=x0+tx/64*bw, sx1=x0+(tx+1)/64*bw;
+      let acc=0, n=0;
+      for(let sy=Math.floor(sy0); sy<sy1; sy++){
+        for(let sx=Math.floor(sx0); sx<sx1; sx++){
+          acc+=ink[sy*S+sx]; n++;
+        }
+      }
+      b[ty*64+tx]=n?acc/n:0;
+    }
+  }
+  // 블러 (분리형 [1,4,6,4,1]/16)
+  const k=[1/16,4/16,6/16,4/16,1/16];
+  const tmp=new Float32Array(64*64);
+  for(let y=0;y<64;y++)for(let xx=0;xx<64;xx++){
+    let v=0;
+    for(let j=-2;j<=2;j++){
+      const xi=Math.min(63,Math.max(0,xx+j));
+      v+=b[y*64+xi]*k[j+2];
+    }
+    tmp[y*64+xx]=v;
+  }
+  for(let y=0;y<64;y++)for(let xx=0;xx<64;xx++){
+    let v=0;
+    for(let j=-2;j<=2;j++){
+      const yi=Math.min(63,Math.max(0,y+j));
+      v+=tmp[yi*64+xx]*k[j+2];
+    }
+    b[y*64+xx]=v;
+  }
+  // 그래디언트 → 8방향 16x16 히스토그램
+  const B=new Float32Array(16*16*8);
+  for(let y=1;y<63;y++){
+    for(let xx=1;xx<63;xx++){
+      const gx=(b[y*64+xx+1]-b[y*64+xx-1])/2;
+      const gy=(b[(y+1)*64+xx]-b[(y-1)*64+xx])/2;
+      const mag=Math.hypot(gx,gy);
+      if(mag<1e-6) continue;
+      let ang=Math.atan2(gy,gx);
+      if(ang<0) ang+=Math.PI;
+      if(ang>=Math.PI) ang-=Math.PI;
+      let bin=Math.floor(ang/Math.PI*8);
+      if(bin>7) bin=7;
+      B[(((y>>2)*16)+(xx>>2))*8+bin]+=mag;
+    }
+  }
+  // 공간 스무딩 (방향별 3x3 박스 2회)
+  const P2=new Float32Array(16*16);
+  for(let ch=0;ch<8;ch++){
+    for(let i=0;i<256;i++) P2[i]=B[i*8+ch];
+    for(let it=0;it<2;it++){
+      const t2=Float32Array.from(P2);
+      for(let y=0;y<16;y++)for(let xx=0;xx<16;xx++){
+        let v=0,n=0;
+        for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){
+          const yy=y+dy, xx2=xx+dx;
+          if(yy<0||yy>15||xx2<0||xx2>15) continue;
+          v+=t2[yy*16+xx2]; n++;
+        }
+        P2[y*16+xx]=v/n;
+      }
+    }
+    for(let i=0;i<256;i++) B[i*8+ch]=P2[i];
+  }
+  let nrm=0;
+  for(let i=0;i<B.length;i++) nrm+=B[i]*B[i];
+  nrm=Math.sqrt(nrm)||1;
+  for(let i=0;i<B.length;i++) B[i]/=nrm;
+  return {v:B, ar:bw/bh};
+}
+function simOf(a,b){
+  let sm=0;
+  for(let i=0;i<a.v.length;i++) sm+=a.v[i]*b.v[i];
+  return sm-0.10*Math.abs(a.ar-b.ar)/(a.ar+b.ar);
+}
+async function buildMatchDB(){
+  const db=[];
+  for(let p=0;p<ZQB.pages.length;p++){
+    const need=[];
+    ZQB.chars.forEach((c,i)=>{
+      const L=(ZQB.labels||'').charAt(i);
+      if(c[0]===p&&L&&L!=='?') need.push([c,L]);
+    });
+    if(!need.length) continue;
+    const im=await loadPageP(p);
+    for(const nc of need){
+      const c=nc[0], L=nc[1];
+      const sx=c[1]/1000*im.width, sy=c[2]/1000*im.height;
+      const sw=c[3]/1000*im.width, sh=c[4]/1000*im.height;
+      const cv=document.createElement('canvas'); cv.width=160; cv.height=160;
+      const cx=cv.getContext('2d');
+      cx.fillStyle='#fff'; cx.fillRect(0,0,160,160);
+      const s2=Math.min(160/sw,160/sh);
+      cx.drawImage(im,sx,sy,sw,sh,(160-sw*s2)/2,(160-sh*s2)/2,sw*s2,sh*s2);
+      const f=binFeat(cv,160,160);
+      if(f) db.push({f:f,ch:L,kind:'shi',item:c});
+    }
+    await new Promise(r=>setTimeout(r,0));
+  }
+  for(const k of ['kai','xing','xc','cao','gu']){
+    try{ await document.fonts.load('100px "'+LIBFONTS[k][0]+'"','\u6c38'); }catch(e){}
+  }
+  const seen={};
+  for(const st of SETS){
+    for(const ch of st.x){
+      const key=ch+'|'+st.k;
+      if(seen[key]) continue;
+      seen[key]=1;
+      const cv=document.createElement('canvas'); cv.width=160; cv.height=160;
+      const cx=cv.getContext('2d');
+      cx.fillStyle='#fff'; cx.fillRect(0,0,160,160);
+      cx.fillStyle='#000'; cx.textAlign='center'; cx.textBaseline='middle';
+      cx.font='120px "'+LIBFONTS[st.k][0]+'"';
+      cx.fillText(ch,80,88);
+      const f=binFeat(cv,160,160);
+      if(f) db.push({f:f,ch:ch,kind:'font',fk:st.k});
+    }
+  }
+  return db;
+}
+async function localMatch(){
+  const msg=document.getElementById('msgM'); msg.textContent='';
+  const wrap=document.getElementById('candWrap'); wrap.style.display='none';
+  if(!imgB){ msg.textContent='\u8bf7\u5148\u70b9\u53f3\u8fb9"\u6211\u5199\u7684\u5b57"\u4e0a\u4f20\u7167\u7247\uff0c\u518d\u70b9\u672c\u6309\u94ae\u3002'; return; }
+  const btn=document.getElementById('btnMatch'), sp=document.getElementById('spinM');
+  btn.disabled=true; sp.classList.add('on');
+  try{
+    await new Promise(r=>setTimeout(r,30));
+    if(!MATCH_DB) MATCH_DB=await buildMatchDB();
+    const q=binFeat(imgB,imgB.width,imgB.height);
+    if(!q) throw new Error('\u7167\u7247\u91cc\u627e\u4e0d\u5230\u6e05\u6670\u7684\u5b57\uff0c\u8bf7\u62cd\u6b63\u3001\u62cd\u6e05\u695a\u4e00\u70b9');
+    const scored=MATCH_DB.map(e=>({e:e,s:simOf(q,e.f)+(e.kind==='shi'?0.02:0)}));
+    scored.sort((a,b)=>b.s-a.s);
+    const out=[], used={};
+    for(const it of scored){
+      const key=it.e.ch+'|'+it.e.kind;
+      if(used[key]) continue;
+      used[key]=1;
+      out.push(it);
+      if(out.length>=8) break;
+    }
+    const cands=document.getElementById('cands'); cands.innerHTML='';
+    out.forEach(it=>{
+      const b=document.createElement('button');
+      b.style.cssText='border:1px solid var(--line);border-radius:8px;background:#fbf8f1;padding:6px;cursor:pointer;flex:0 0 auto;text-align:center';
+      const cv=document.createElement('canvas'); cv.width=64; cv.height=64;
+      const cx=cv.getContext('2d');
+      cx.fillStyle='#fff'; cx.fillRect(0,0,64,64);
+      if(it.e.kind==='font'){
+        cx.fillStyle='#000'; cx.textAlign='center'; cx.textBaseline='middle';
+        cx.font='48px "'+LIBFONTS[it.e.fk][0]+'"';
+        cx.fillText(it.e.ch,32,35);
+      }else{
+        cropZqb(it.e.item, c=>{ cx.drawImage(c,0,0,64,64); });
+      }
+      b.appendChild(cv);
+      const cap=document.createElement('div');
+      cap.style.cssText='font-size:11px;color:var(--ink-soft);margin-top:2px';
+      cap.textContent=(it.e.kind==='shi'?'\u5355\u7428\u00b7':LIBFONTS[it.e.fk][1]+'\u00b7')+it.e.ch;
+      b.appendChild(cap);
+      b.onclick=()=>{
+        if(it.e.kind==='shi'){
+          cropZqb(it.e.item, c=>{
+            imgA=c; thumb(cvA,imgA); overlay();
+            msg.textContent='\u5df2\u9009\u7528\u5355\u7428\u8001\u5e08\u5199\u7684\u300c'+it.e.ch+'\u300d\u4f5c\u4e3a\u539f\u5e16\u3002';
+          });
+        }else{
+          drawRefGlyph(it.e.ch, it.e.fk).then(c=>{
+            imgA=c; thumb(cvA,imgA); overlay();
+            msg.textContent='\u5df2\u9009\u7528\u5185\u7f6e'+LIBFONTS[it.e.fk][1]+'\u7684\u300c'+it.e.ch+'\u300d\u4f5c\u4e3a\u539f\u5e16\u3002';
+          });
+        }
+        wrap.style.display='none';
+      };
+      cands.appendChild(b);
+    });
+    wrap.style.display='block';
+    msg.textContent='\u8bc6\u522b\u5b8c\u6210\uff1a\u8bf7\u5728\u4e0b\u9762\u70b9\u9009\u6b63\u786e\u7684\u5b57\u3002';
+  }catch(e){
+    msg.textContent='\u672c\u673a\u8bc6\u522b\u5931\u8d25\uff1a'+((e&&e.message)||e);
+  }
+  btn.disabled=false; sp.classList.remove('on');
+}
+
 async function autoMatch(){
   const msg=document.getElementById('msgM'); msg.textContent='';
   if(!imgB){ msg.textContent='请先点右边"我写的字"上传照片，再点本按钮。'; return; }

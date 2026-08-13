@@ -1250,7 +1250,7 @@ function cropZqb(it, cb){
     cb(c);
   });
 }
-function fitCanvas(im){
+function fitPage(im){
   const M=1800, sc=Math.min(1,M/Math.max(im.width,im.height));
   const c=document.createElement('canvas');
   c.width=Math.round(im.width*sc); c.height=Math.round(im.height*sc);
@@ -1265,7 +1265,7 @@ function showImgChar(){
   };
   if(curSet.dir){
     const pn='p'+String(curSet.items[curIdx][0]+1).padStart(2,'0')+'.jpg';
-    loadAsset('sets/'+curSet.dir+'/'+pn, im=>done(fitCanvas(im)));
+    loadAsset('sets/'+curSet.dir+'/'+pn, im=>done(fitPage(im)));
   }else{
     cropZqb(curSet.items[curIdx], done);
   }

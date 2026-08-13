@@ -195,7 +195,7 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
     <button class="btn ghost" onclick="togglePrint()">打印字帖</button>
     <input type="file" id="fileMain" accept="image/*" hidden>
   </div>
-  <p class="hint">字库按书法演进排列：隶书（张迁碑·单琨手写301字）→ 楷 → 行 → 行草 → 草。逐字临写，或上传名家字帖照片。双指缩放，单指拖动。</p>
+  <p class="hint">字库按书法演进排列：隶书（张迁碑·单琨手写）→ 楷书（赵孟顈）→ 行书（赵孟顈）→ 草书（王羲之），后附字体参考。逐字临写，或上传名家字帖照片。双指缩放，单指拖动。</p>
 
   <div class="row" id="saveRow" style="display:none">
     <button class="chip" onclick="saveMyTie()">存入我的碑帖</button>
@@ -434,7 +434,7 @@ ul.reclist li span{color:var(--ink-soft); flex:1}
     <div id="libList"></div>
     <h3 id="tieHead" style="display:none">我的碑帖（自加图片）</h3>
     <div id="tieList"></div>
-    <div class="lic">字体：马善政楷书 Ma Shan Zheng · 志忙行书 Zhi Mang Xing · 龙藏行草 Long Cang · 柳建毛草 Liu Jian Mao Cao · 站酷小薇 ZCOOL XiaoWei（均为 SIL Open Font License 开源授权）· 张迁碑临本：单琨老师手书</div>
+    <div class="lic">字体：马善政楷书 Ma Shan Zheng · 志忙行书 Zhi Mang Xing · 龙藏行草 Long Cang · 柳建毛草 Liu Jian Mao Cao · 站酷小薇 ZCOOL XiaoWei（均为 SIL Open Font License 开源授权）· 张迁碑临本：单琨老师手书 · 赵孟顈/王羲之图版：公有领域高清扫描</div>
   </div>
 </div>
 
@@ -1159,8 +1159,20 @@ function buildLib(){
     b.onclick=()=>pickImg(w);
     box.appendChild(b);
   });
+  [['楷书 · 元 赵孟顈',['zmfkq','zmfzc']],
+   ['行书 · 元 赵孟顈',['zmfls','zmfxj']],
+   ['草书 · 东晋 王羲之',['w17','wsl']]].forEach(gr=>{
+    const hg=document.createElement('h3'); hg.textContent=gr[0]; box.appendChild(hg);
+    PSETS.forEach((p,i)=>{
+      if(gr[1].indexOf(p.dir)<0) return;
+      const b=document.createElement('button');
+      b.className='setbtn'; b.textContent=p.t;
+      b.onclick=()=>pickPset(i);
+      box.appendChild(b);
+    });
+  });
   ['kai','xing','xc','cao','gu'].forEach(k=>{
-    const h2=document.createElement('h3'); h2.textContent=LIBFONTS[k][1]; box.appendChild(h2);
+    const h2=document.createElement('h3'); h2.textContent='字体参考 · '+LIBFONTS[k][1]; box.appendChild(h2);
     SETS.forEach((s,i)=>{
       if(s.k!==k) return;
       const b=document.createElement('button');
@@ -1189,24 +1201,41 @@ function pickImg(which){
   }else{
     items=ZQB.pages.map((p,i)=>[i,0,0,1000,1000]);
   }
-  curSet={kind:'img', t:(which===0?'张迁碑·单琨手写·逐字':'张迁碑·单琨手写·整页'), items:items, labels:labels};
+  curSet={kind:'img', t:(which===0?'张迁碑·单琨手写·逐字':'张迁碑·单琨手写·整页'), items:items, labels:labels, sl:'隶书'};
   curIdx=0; uploadedImg=null; closeLib();
   document.getElementById('saveRow').style.display='none';
   showChar();
 }
-function getPage(pi,cb){
-  if(pageCache[pi]){ cb(pageCache[pi]); return; }
-  const done=im=>{ pageCache[pi]=im; cb(im); };
-  const pname=ZQB.pages[pi];
+function loadAsset(rel,cb){
+  if(pageCache[rel]){ cb(pageCache[rel]); return; }
+  const done=im=>{ pageCache[rel]=im; cb(im); };
   if(window.AndroidBridge&&AndroidBridge.readAsset){
-    const b64=AndroidBridge.readAsset('sets/zqb/'+pname);
+    const b64=AndroidBridge.readAsset(rel);
     if(!b64) return;
     const im=new Image(); im.onload=()=>done(im);
     im.src='data:image/jpeg;base64,'+b64;
   }else{
     const im=new Image(); im.onload=()=>done(im);
-    im.src='sets/zqb/'+pname;
+    im.src=rel;
   }
+}
+function getPage(pi,cb){ loadAsset('sets/zqb/'+ZQB.pages[pi], cb); }
+const PSETS=[
+ {t:'赵孟顈·楷书续千字文',dir:'zmfkq',n:14,sl:'楷书'},
+ {t:'赵孟顈·真草千字文',dir:'zmfzc',n:26,sl:'真草'},
+ {t:'赵孟顈·行书洛神赋',dir:'zmfls',n:14,sl:'行书'},
+ {t:'赵孟顈·行书心经',dir:'zmfxj',n:5,sl:'行书'},
+ {t:'王羲之·十七帖（宋拓）',dir:'w17',n:32,sl:'草书'},
+ {t:'王羲之·丧乱帖',dir:'wsl',n:5,sl:'草书'}
+];
+function pickPset(i){
+  const p=PSETS[i];
+  const items=[];
+  for(let k=0;k<p.n;k++) items.push([k,0,0,1000,1000]);
+  curSet={kind:'img', t:p.t, items:items, labels:null, dir:p.dir, sl:p.sl};
+  curIdx=0; uploadedImg=null; closeLib();
+  document.getElementById('saveRow').style.display='none';
+  showChar();
 }
 function cropZqb(it, cb){
   getPage(it[0], im=>{
@@ -1221,12 +1250,25 @@ function cropZqb(it, cb){
     cb(c);
   });
 }
+function fitCanvas(im){
+  const M=1800, sc=Math.min(1,M/Math.max(im.width,im.height));
+  const c=document.createElement('canvas');
+  c.width=Math.round(im.width*sc); c.height=Math.round(im.height*sc);
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+  return c;
+}
 function showImgChar(){
-  cropZqb(curSet.items[curIdx], c=>{
+  const done=c=>{
     imgMain=c;
     document.getElementById('empty').style.display='none';
     resetView(); applyFilter(); drawImg(); updateNav();
-  });
+  };
+  if(curSet.dir){
+    const pn='p'+String(curSet.items[curIdx][0]+1).padStart(2,'0')+'.jpg';
+    loadAsset('sets/'+curSet.dir+'/'+pn, im=>done(fitCanvas(im)));
+  }else{
+    cropZqb(curSet.items[curIdx], done);
+  }
 }
 function curLen(){ return curSet ? (curSet.kind==='img'?curSet.items.length:curSet.x.length) : 0; }
 function showChar(){
@@ -1255,7 +1297,7 @@ function updateNav(){
   if(!curSet){ nav.style.display='none'; strip.style.display='none'; return; }
   nav.style.display='flex';
   const isImg=curSet.kind==='img';
-  const label=isImg?'隶书':LIBFONTS[curSet.k][1];
+  const label=isImg?(curSet.sl||'隶书'):LIBFONTS[curSet.k][1];
   const N=curLen();
   document.getElementById('setInfo').textContent=
     curSet.t+' · '+label+' · '+(curIdx+1)+'/'+N;
